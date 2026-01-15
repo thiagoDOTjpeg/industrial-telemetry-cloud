@@ -1,9 +1,9 @@
 resource "aws_db_instance" "main-db" {
-  identifier             = "industrial-db"
-  instance_class         = "db.t3.micro"
-  allocated_storage      = 10 
-  engine                 = "postgres"
-  engine_version         = "16"
+  identifier             = var.db_indentifier
+  instance_class         = var.db_instance_class
+  allocated_storage      = var.db_allocated_storage
+  engine                 = var.db_engine
+  engine_version         = var.db_engine_version
   
   username               = var.db_username
   password               = var.db_password

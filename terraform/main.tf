@@ -1,19 +1,19 @@
 provider "aws" {
-  region                      = "us-east-1"
-  access_key                  = "test" 
-  secret_key                  = "test"
+  region                      = var.aws_region
+  access_key                  = var.aws_access_key
+  secret_key                  = var.aws_secret_key
   skip_credentials_validation = true
   skip_metadata_api_check     = true
   skip_requesting_account_id  = true
 
   endpoints {
-    ec2            = "http://localhost:4566"
-    s3             = "http://s3.localhost.localstack.cloud:4566" 
-    sts            = "http://localhost:4566"
-    iam            = "http://localhost:4566"
-    sqs            = "http://localhost:4566"
-    lambda         = "http://localhost:4566"
-    rds            = "http://localhost:4566"
+    ec2            = var.provider_localhost
+    s3             = var.provider_localhost_s3
+    sts            = var.provider_localhost
+    iam            = var.provider_localhost
+    sqs            = var.provider_localhost
+    lambda         = var.provider_localhost
+    rds            = var.provider_localhost
   }
 }
 
