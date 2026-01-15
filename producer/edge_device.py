@@ -5,6 +5,9 @@ import json
 import uuid
 from datetime import datetime
 import random
+import time
+
+from config import QUEUE_URL, SIMULATION_INTERVAL_SECONDS, BATCH_SIZE
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s: %(levelname)s: %(message)s")
 logger = logging.getLogger()
@@ -21,12 +24,12 @@ def simulate_telemetry():
         "status": random.choice(["OPERATIONAL", "OPERATIONAL", "WARNING"]) 
     }
 
-def send_telemetry(queue_url):
+def send_telemetry():
     data = simulate_telemetry()
     
     try:
         response = sqs_client.send_message(
-            QueueUrl=queue_url,
+            QueueUrl=QUEUE_URL,
             MessageBody=json.dumps(data),
             MessageAttributes={
                 "DataType": {
@@ -41,7 +44,10 @@ def send_telemetry(queue_url):
         logger.error(f"Error sending to SQS: {e}")
 
 if __name__ == "__main__":
-    QUEUE_URL = "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/dev-industrial-telemetry-queue"
+    logger.info(f"Starting telemetry producer - Queue: {QUEUE_URL}")
+    logger.info(f"Batch size: {BATCH_SIZE} | Interval: {SIMULATION_INTERVAL_SECONDS}s")
     
-    for _ in range(5):
-        send_telemetry(QUEUE_URL)
+    while True:
+        for _ in range(BATCH_SIZE):
+            send_telemetry()
+        time.sleep(SIMULATION_INTERVAL_SECONDS)
