@@ -1,15 +1,15 @@
 import logging
-import boto3
+import localstack_client.session as boto3
+from localstack_client.patch import enable_local_endpoints
 from botocore.exceptions import ClientError
 import json
-
-AWS_REGION = "us-east-1"
-AWS_ENDPOINT_URL = "http://athens.gritti.dev.br:4566"
 
 logger = logging.getLogger()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s: %(levelname)s: %(message)s")
 
-sqs_client = boto3.client("sqs", endpoint_url=AWS_ENDPOINT_URL, region_name=AWS_REGION)
+enable_local_endpoints()
+
+sqs_client = boto3.client("sqs")
 
 def send_message_queue(queue_url, msg_attributes, msg_body):
   try:
