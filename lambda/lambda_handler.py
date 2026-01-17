@@ -2,7 +2,6 @@ import json
 import logging
 
 logger = logging.getLogger();
-logging.basicConfig(logging.INFO)
 
 def lambda_handler(event, context):
   for record in event["Records"]:
