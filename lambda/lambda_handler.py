@@ -52,6 +52,8 @@ def lambda_handler(event, context):
         
         for record in event.get("Records", []):
             message_data = json.loads(record["body"])
+
+            logger.info("telemetry received")
             
             query = "INSERT INTO telemetry (machine_id, temperature, status) VALUES (%s, %s, %s)"
             cur.execute(query, (
