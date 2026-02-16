@@ -18,6 +18,18 @@ def get_auth_token():
         Region=AWS_REGION
     )
 
+def init_db(cur):
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS telemetry (
+        id SERIAL PRIMARY KEY,
+        machine_id TEXT NOT NULL,
+        temperature FLOAT NOT NULL,
+        status TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """
+    cur.execute(create_table_query)
+
 
 
 def lambda_handler(event, context):
@@ -36,6 +48,7 @@ def lambda_handler(event, context):
         )
         
         cur = conn.cursor()
+        init_db(cur)
         
         for record in event.get("Records", []):
             message_data = json.loads(record["body"])

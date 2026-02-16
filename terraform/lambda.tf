@@ -16,6 +16,16 @@ resource "aws_lambda_function" "lambda_handler" {
 
   timeout = 30
 
+  environment {
+    variables = {
+      AWS_REGION = var.aws_region
+      ENDPOINT   = aws_db_instance.main-db.address
+      DB_PORT    = "5432"
+      DB_USER    = var.db_username
+      DB_NAME    = "postgres" 
+    }
+  }
+
   vpc_config {
     subnet_ids = [aws_subnet.private_zone1.id, aws_subnet.private_zone2.id]
     security_group_ids = [aws_security_group.lambda_sg.id]
