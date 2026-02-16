@@ -17,6 +17,8 @@ resource "aws_db_instance" "main-db" {
   storage_type            = "gp3"
   backup_retention_period = 7
 
+  iam_database_authentication_enabled = true
+
   tags = {
     Name = "dev-rds-postgres-db"
   }

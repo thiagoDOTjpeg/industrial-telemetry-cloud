@@ -1,44 +1,3 @@
-resource "aws_iam_role" "lambda_exec" {
-  name = "lambda_exec_role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
-      Sid    = ""
-      Principal = {
-        Service = "lambda.amazonaws.com"
-      }
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_basic" {
-  role       = aws_iam_role.lambda_exec.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-resource "aws_iam_role_policy" "lambda_sqs" {
-  name = "lambda_sqs_policy"
-  role = aws_iam_role.lambda_exec.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "sqs:ReceiveMessage",
-          "sqs:DeleteMessage",
-          "sqs:GetQueueAttributes"
-        ]
-        Resource = aws_sqs_queue.telemetry_queue.arn
-      }
-    ]
-  })
-}
-
 data "archive_file" "lambda_zip" {
   type        = "zip"
   source_dir  = "${path.module}/../lambda"
@@ -56,6 +15,11 @@ resource "aws_lambda_function" "lambda_handler" {
   reserved_concurrent_executions = 10
 
   timeout = 30
+
+  vpc_config {
+    subnet_ids = [aws_subnet.private_zone1.id, aws_subnet.private_zone2]
+    security_group_ids = [aws_security_group.lambda_sg.id]
+  }
 }
 
 resource "aws_lambda_event_source_mapping" "sqs_trigger" {
