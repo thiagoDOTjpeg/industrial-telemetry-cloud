@@ -18,6 +18,9 @@ env/
 .venv/
 .env
 
+
+*.zip
+
 dist/
 build/
 *.egg-info/
