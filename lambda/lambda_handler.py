@@ -49,9 +49,13 @@ def lambda_handler(event, context):
         
         cur = conn.cursor()
         init_db(cur)
+
+        records = event.get("Records", [])
         
-        for record in event.get("Records", []):
-            message_data = json.loads(record["body"])
+        for record in records:
+            message_body = record.get("body", "")
+
+            message_data = json.loads(message_body)
 
             logger.info("telemetry received")
             
