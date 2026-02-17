@@ -13,11 +13,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+**/site-packages/
+**/psycopg2/
+**/*.so
+**/*.zip
+**/__pycache__/
 venv/
-env/
-.venv/
 .env
-
 
 *.zip
 

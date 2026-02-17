@@ -13,6 +13,17 @@ data "archive_file" "lambda_zip" {
   ]
 }
 
+data "archive_file" "psycopg2_layer_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../layers/psycopg2_layer"
+  output_path = "${path.module}/psycopg2_layer.zip"
+}
+resource "aws_lambda_layer_version" "psycopg2" {
+  filename            = data.archive_file.psycopg2_layer_zip.output_path
+  layer_name          = "psycopg2_layer"
+  compatible_runtimes = ["python3.12"]
+}
+
 resource "aws_lambda_function" "lambda_handler" {
   filename         = data.archive_file.lambda_zip.output_path
   function_name    = "lambda_handler"
@@ -20,6 +31,7 @@ resource "aws_lambda_function" "lambda_handler" {
   handler          = "lambda_handler.lambda_handler"
   runtime          = "python3.12"
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+  layers = [aws_lambda_layer_version.psycopg2.arn]
 
   reserved_concurrent_executions = 10
 
