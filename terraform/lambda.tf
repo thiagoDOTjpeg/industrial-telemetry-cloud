@@ -40,7 +40,7 @@ resource "aws_lambda_function" "lambda_handler" {
   environment {
     variables = {
       AWS_REGION = var.aws_region
-      ENDPOINT   = aws_db_instance.main-db.address
+      DB_ENDPOINT   = aws_db_instance.main-db.address
       DB_PORT    = "5432"
       DB_USER    = var.db_username
       DB_NAME    = "postgres" 
