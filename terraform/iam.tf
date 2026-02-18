@@ -57,3 +57,39 @@ resource "aws_iam_role_policy" "lambda_rds_connect" {
     }]
   })
 }
+
+resource "aws_iam_role" "rds_proxy_role" {
+  name = "rds-proxy-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = {
+          Service = "rds.amazonaws.com"
+        },
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "rds_proxy_policy" {
+  name = "rds-proxy-policy"
+  role = aws_iam_role.rds_proxy_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "kms:Decrypt"
+        ],
+        Resource = ["your-secrets-manager-secret-arn"]
+      }
+    ]
+  })
+}

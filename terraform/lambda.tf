@@ -31,7 +31,7 @@ resource "aws_lambda_function" "lambda_handler" {
   handler          = "lambda_handler.lambda_handler"
   runtime          = "python3.12"
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
-  layers = [aws_lambda_layer_version.psycopg2.arn]
+  layers           = [aws_lambda_layer_version.psycopg2.arn]
 
   reserved_concurrent_executions = 10
 
@@ -39,16 +39,16 @@ resource "aws_lambda_function" "lambda_handler" {
 
   environment {
     variables = {
-      AWS_REGION = var.aws_region
-      DB_ENDPOINT   = aws_db_instance.main-db.address
-      DB_PORT    = aws_db_instance.main-db.port
-      DB_USER    = var.db_username
-      DB_NAME    = "postgres" 
+      AWS_REGION  = var.aws_region
+      DB_ENDPOINT = aws_db_proxy.rds-proxy.endpoint
+      DB_PORT     = aws_db_instance.main-db.port
+      DB_USER     = var.db_username
+      DB_NAME     = "postgres"
     }
   }
 
   vpc_config {
-    subnet_ids = [aws_subnet.private_zone1.id, aws_subnet.private_zone2.id]
+    subnet_ids         = [aws_subnet.private_zone1.id, aws_subnet.private_zone2.id]
     security_group_ids = [aws_security_group.lambda_sg.id]
   }
 }
