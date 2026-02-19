@@ -53,7 +53,7 @@ resource "aws_iam_role_policy" "lambda_rds_connect" {
     Statement = [{
       Effect   = "Allow"
       Action   = "rds-db:connect"
-      Resource = "arn:aws:rds-db:${var.aws_region}:*:dbuser:${aws_db_proxy.rds-proxy.resource_id}/${var.db_username_iam}"
+      Resource = "arn:aws:rds-db:${var.aws_region}:*:dbuser:${element(split(":", aws_db_proxy.rds-proxy.arn), 6)}/${var.db_username_iam}"
     }]
   })
 }
