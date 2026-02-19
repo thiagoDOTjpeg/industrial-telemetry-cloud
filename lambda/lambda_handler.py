@@ -9,10 +9,11 @@ logger.setLevel(logging.INFO)
 
 client = boto3.client('rds', region_name=AWS_REGION)
 
+DB_HOST = DB_ENDPOINT.split(':')[0]
 
 def get_auth_token():
     return client.generate_db_auth_token(
-        DBHostname=DB_ENDPOINT,
+        DBHostname=DB_HOST,
         Port=DB_PORT,
         DBUsername=DB_USER,
         Region=AWS_REGION
@@ -25,7 +26,7 @@ def lambda_handler(event, context):
     conn = None
     try:
         conn = psycopg2.connect(
-            host=DB_ENDPOINT,
+            host=DB_HOST,
             database=DB_NAME,
             user=DB_USER,
             password=token,

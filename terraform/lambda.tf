@@ -41,9 +41,9 @@ resource "aws_lambda_function" "lambda_handler" {
     variables = {
       AWS_REGION  = var.aws_region
       DB_ENDPOINT = aws_db_proxy.rds-proxy.endpoint
-      DB_PORT     = 5432
+      DB_PORT     = "4510"
       DB_USER     = var.db_username_iam
-      DB_NAME     = "postgres"
+      DB_NAME     = "test"
     }
   }
 
