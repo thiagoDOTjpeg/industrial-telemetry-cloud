@@ -59,3 +59,27 @@ resource "aws_lambda_event_source_mapping" "sqs_trigger" {
   batch_size       = 10
   enabled          = true
 }
+
+resource "aws_lambda_function" "get_telemetry_lambda" {
+  filename         = data.archive_file.lambda_zip.output_path
+  function_name    = "get_telemetry"
+  role             = aws_iam_role.lambda_exec.arn
+  handler          = "get_telemetry.lambda_handler"
+  runtime          = "python3.12"
+  layers           = [aws_lambda_layer_version.psycopg2.arn]
+
+  environment {
+    variables = {
+      AWS_REGION  = var.aws_region
+      DB_ENDPOINT = aws_db_proxy.rds-proxy.endpoint
+      DB_PORT     = "4510"
+      DB_USER     = "grafana_reader" 
+      DB_NAME     = "test"
+    }
+  }
+
+  vpc_config {
+    subnet_ids         = [aws_subnet.private_zone1.id, aws_subnet.private_zone2.id]
+    security_group_ids = [aws_security_group.lambda_sg.id]
+  }
+}
