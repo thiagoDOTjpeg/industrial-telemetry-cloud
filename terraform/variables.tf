@@ -1,3 +1,8 @@
+variable "db_username_iam" {
+  type    = string
+  default = "telemetry_user"
+}
+
 variable "db_username" {
   type    = string
   default = "admin"

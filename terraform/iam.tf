@@ -53,7 +53,7 @@ resource "aws_iam_role_policy" "lambda_rds_connect" {
     Statement = [{
       Effect   = "Allow"
       Action   = "rds-db:connect"
-      Resource = "arn:aws:rds-db:${var.aws_region}:*:dbuser:*/${var.db_username}"
+      Resource = "arn:aws:rds-db:${var.aws_region}:*:dbuser:${aws_db_proxy.rds-proxy.resource_id}/${var.db_username_iam}"
     }]
   })
 }
@@ -88,7 +88,7 @@ resource "aws_iam_role_policy" "rds_proxy_policy" {
           "secretsmanager:GetSecretValue",
           "kms:Decrypt"
         ],
-        Resource = ["your-secrets-manager-secret-arn"]
+        Resource = [aws_secretsmanager_secret.db_secret.arn]
       }
     ]
   })
