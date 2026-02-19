@@ -25,8 +25,27 @@ resource "aws_api_gateway_integration" "lambda_integration" {
 }
 
 resource "aws_api_gateway_deployment" "dev" {
-  depends_on  = [aws_api_gateway_integration.lambda_integration]
   rest_api_id = aws_api_gateway_rest_api.telemetry_api.id
+
+  triggers = {
+    redeployment = sha1(jsonencode([
+      aws_api_gateway_resource.telemetry.id,
+      aws_api_gateway_method.get_telemetry.id,
+      aws_api_gateway_integration.lambda_integration.id,
+    ]))
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  depends_on = [aws_api_gateway_integration.lambda_integration]
+}
+
+resource "aws_api_gateway_stage" "dev" {
+  deployment_id = aws_api_gateway_deployment.dev.id
+  rest_api_id   = aws_api_gateway_rest_api.telemetry_api.id
+  stage_name    = "dev"
 }
 
 resource "aws_lambda_permission" "api_gw" {
