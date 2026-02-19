@@ -93,3 +93,41 @@ resource "aws_iam_role_policy" "rds_proxy_policy" {
     ]
   })
 }
+
+resource "aws_iam_policy" "grafana_policy" {
+  name = "GrafanaAccessPolicy"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = [
+          "cloudwatch:GetMetricData",
+          "cloudwatch:ListMetrics",
+          "logs:DescribeLogGroups",
+          "logs:GetLogEvents",
+          "logs:FilterLogEvents"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = "rds-db:connect"
+        Resource = "arn:aws:rds-db:${var.aws_region}:*:dbuser:${element(split(":", aws_db_proxy.rds-proxy.arn), 6)}/grafana_reader"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_user" "grafana_external" {
+  name = "grafana-external-user"
+}
+
+resource "aws_iam_access_key" "grafana_external" {
+  user = aws_iam_user.grafana_external.name
+}
+
+resource "aws_iam_user_policy_attachment" "grafana_attach" {
+  user       = aws_iam_user.grafana_external.name
+  policy_arn = aws_iam_policy.grafana_policy.arn 
+}

@@ -13,7 +13,7 @@ resource "aws_security_group" "vpc_endpoints_sg" {
 }
 
 resource "aws_vpc_endpoint" "services" {
-  for_each = toset(["sqs", "secretsmanager", "sts"])
+  for_each = toset(["sqs", "secretsmanager", "sts", "logs", "monitoring"])
 
   vpc_id              = aws_vpc.main.id
   service_name        = "com.amazonaws.${var.aws_region}.${each.key}"
