@@ -34,7 +34,7 @@ terraform apply -auto-approve
 
 echo "Configurando banco de dados e permissoes SQL..."
 
-DB_HOST="localhost"
+DB_HOST="127.0.0.1"
 DB_PORT="4510"
 DB_USER="admin"
 DB_PASS="admin"
