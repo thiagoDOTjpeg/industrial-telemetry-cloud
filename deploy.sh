@@ -41,23 +41,23 @@ DB_PASS="admin"
 DB_NAME="test"
 
 SQL_SCRIPT=$(cat <<EOF
-DO $$
+DO \$\$
 BEGIN
     IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'telemetry_user') THEN
         CREATE USER telemetry_user;
     END IF;
 END
-$$;
+\$\$;
 
 GRANT rds_iam TO telemetry_user;
 
-DO $$
+DO \$\$
 BEGIN
     IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'grafana_reader') THEN
         CREATE USER grafana_reader;
     END IF;
 END
-$$;
+\$\$;
 
 GRANT rds_iam TO grafana_reader;
 -- Permissão apenas de leitura (DQL)
