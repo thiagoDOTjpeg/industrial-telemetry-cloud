@@ -2,6 +2,8 @@ data "archive_file" "lambda_zip" {
   type        = "zip"
   source_dir  = "${path.module}/../lambda"
   output_path = "${path.module}/lambda_handler.zip"
+  output_file_mode = "0666"
+
 
   excludes = [
     "venv",
