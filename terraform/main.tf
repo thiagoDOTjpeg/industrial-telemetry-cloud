@@ -15,6 +15,7 @@ provider "aws" {
     lambda         = var.provider_localhost
     rds            = var.provider_localhost
     secretsmanager = var.provider_localhost
+    apigateway     = var.provider_localhost
   }
 }
 
