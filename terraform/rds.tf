@@ -8,6 +8,7 @@ resource "aws_db_instance" "main-db" {
   allocated_storage = var.db_allocated_storage
   engine            = var.db_engine
   engine_version    = var.db_engine_version
+  db_name = "test"
 
   username = var.db_username
   password = var.db_password
@@ -40,7 +41,7 @@ resource "aws_secretsmanager_secret_version" "db_secret_val" {
     password = var.db_password
     engine   = "postgres"
     host     = aws_db_instance.main-db.address
-    port     = 5432
+    port     = 4510
   })
 }
 
