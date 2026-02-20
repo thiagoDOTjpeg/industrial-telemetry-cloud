@@ -39,7 +39,7 @@ def lambda_handler(event, context):
         )
         
         cur = conn.cursor()
-        cur.execute("SELECT machine_id, temperature, status, created_at FROM telemetry WHERE create_at > NOW() - INTERVAL '1 hour' ORDER BY created_at DESC")
+        cur.execute("SELECT machine_id, temperature, status, created_at FROM telemetry WHERE created_at > NOW() - INTERVAL '1 hour' ORDER BY created_at DESC")
         rows = cur.fetchall()
         
         telemetry_data = [
