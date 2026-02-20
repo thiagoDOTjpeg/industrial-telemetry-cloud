@@ -49,8 +49,6 @@ BEGIN
 END
 \$\$;
 
-GRANT rds_iam TO telemetry_user;
-
 DO \$\$
 BEGIN
     IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'grafana_reader') THEN
@@ -58,10 +56,6 @@ BEGIN
     END IF;
 END
 \$\$;
-
-GRANT rds_iam TO grafana_reader;
--- Permissão apenas de leitura (DQL)
-GRANT SELECT ON telemetry TO grafana_reader;
 
 CREATE TABLE IF NOT EXISTS telemetry (
     id SERIAL PRIMARY KEY,
@@ -71,7 +65,10 @@ CREATE TABLE IF NOT EXISTS telemetry (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+GRANT rds_iam TO telemetry_user;
+GRANT rds_iam TO grafana_reader;
 GRANT INSERT ON telemetry TO telemetry_user;
+GRANT SELECT ON telemetry TO grafana_reader;
 GRANT USAGE, SELECT ON SEQUENCE telemetry_id_seq TO telemetry_user;
 EOF
 )
