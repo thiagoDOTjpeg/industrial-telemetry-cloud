@@ -19,13 +19,14 @@ DB_HOST = DB_ENDPOINT.split(':')[0]
 def get_auth_token():
     return client.generate_db_auth_token(
         DBHostname=DB_HOST,
-        Port=int(DB_PORT),
+        Port=5432,
         DBUsername=DB_USER,
         Region=AWS_REGION
     )
 
 def lambda_handler(event, context):
     token = get_auth_token()
+
     conn = None
     try:
         conn = psycopg2.connect(

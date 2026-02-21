@@ -1,18 +1,13 @@
-data "archive_file" "lambda_zip" {
+data "archive_file" "ingestor_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/../lambda"
-  output_path = "${path.module}/lambda_handler.zip"
-  output_file_mode = "0666"
+  source_file = "${path.module}/../lambda/ingestor/lambda_handler.py"
+  output_path = "${path.module}/ingestor_handler.zip"
+}
 
-
-  excludes = [
-    "venv",
-    ".venv",
-    "__pycache__",
-    ".env",
-    "requirements-dev.txt",
-    "test_handler.py"
-  ]
+data "archive_file" "query_zip" {
+  type        = "zip"
+  source_file = "${path.module}/../lambda/query/get_telemetry.py"
+  output_path = "${path.module}/query_handler.zip"
 }
 
 data "archive_file" "psycopg2_layer_zip" {
@@ -27,12 +22,12 @@ resource "aws_lambda_layer_version" "psycopg2" {
 }
 
 resource "aws_lambda_function" "lambda_handler" {
-  filename         = data.archive_file.lambda_zip.output_path
+  filename         = data.archive_file.ingestor_zip.output_path
+  source_code_hash = data.archive_file.ingestor_zip.output_base64sha256
   function_name    = "lambda_handler"
   role             = aws_iam_role.lambda_exec.arn
   handler          = "lambda_handler.lambda_handler"
   runtime          = "python3.12"
-  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
   layers           = [aws_lambda_layer_version.psycopg2.arn]
 
   reserved_concurrent_executions = 10
@@ -63,7 +58,8 @@ resource "aws_lambda_event_source_mapping" "sqs_trigger" {
 }
 
 resource "aws_lambda_function" "get_telemetry_lambda" {
-  filename         = data.archive_file.lambda_zip.output_path
+  filename         = data.archive_file.query_zip.output_path
+  source_code_hash = data.archive_file.query_zip.output_base64sha256
   function_name    = "get_telemetry"
   role             = aws_iam_role.lambda_exec.arn
   handler          = "get_telemetry.lambda_handler"
