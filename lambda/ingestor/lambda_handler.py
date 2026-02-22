@@ -17,7 +17,10 @@ DB_NAME = os.getenv("DB_NAME")
 rds_client = boto3.client('rds', region_name=AWS_REGION)
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('websocket-connections')
-api_client = boto3.client('apigatewaymanagementapi', endpoint_url="http://localhost:4566")
+api_client = boto3.client(
+    'apigatewaymanagementapi', 
+    endpoint_url="http://localhost.localstack.cloud:4566"
+)
 
 DB_HOST = DB_ENDPOINT.split(':')[0]
 

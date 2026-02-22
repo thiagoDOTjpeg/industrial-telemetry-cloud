@@ -4,7 +4,7 @@ resource "aws_dynamodb_table" "ws_connections" {
   hash_key       = "connectionId"
   attribute { 
     name = "connectionId"
-     type = "S"
+    type = "S"
   }
 }
 
@@ -22,12 +22,14 @@ resource "aws_apigatewayv2_stage" "dev" {
 
 resource "aws_lambda_function" "ws_connect" {
   filename         = data.archive_file.query_zip.output_path
+  source_code_hash = data.archive_file.query_zip.output_base64sha256 
   function_name    = "ws_connect"
   role             = aws_iam_role.lambda_exec.arn
   handler          = "ws_connect.handler"
   runtime          = "python3.12"
 }
 
+# Rota $connect
 resource "aws_apigatewayv2_route" "connect" {
   api_id    = aws_apigatewayv2_api.telemetry_ws.id
   route_key = "$connect"
@@ -45,4 +47,5 @@ resource "aws_lambda_permission" "ws_connect_permission" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.ws_connect.function_name
   principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.telemetry_ws.execution_arn}/*/*"
 }
