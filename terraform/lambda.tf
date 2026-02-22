@@ -71,7 +71,7 @@ resource "aws_lambda_function" "get_telemetry_lambda" {
       AWS_REGION  = var.aws_region
       DB_ENDPOINT = aws_db_proxy.rds-proxy.endpoint
       DB_PORT     = "4510"
-      DB_USER     = "grafana_reader" 
+      DB_USER     = "lambda_api_user" 
       DB_NAME     = "test"
     }
   }
