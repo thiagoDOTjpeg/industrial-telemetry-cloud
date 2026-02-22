@@ -2,7 +2,14 @@ import json
 import logging
 import psycopg2
 import boto3
-from config import AWS_REGION, DB_NAME, DB_ENDPOINT, DB_PORT, DB_USER
+import os
+
+AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+DB_ENDPOINT = os.getenv("DB_ENDPOINT")
+DB_PORT = os.getenv("DB_PORT", "5432")
+DB_USER = os.getenv("DB_USER", "admin")
+DB_NAME = os.getenv("DB_NAME", "postgres")
+
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
