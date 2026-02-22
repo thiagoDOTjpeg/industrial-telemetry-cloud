@@ -1,5 +1,4 @@
 import axios from "axios";
-import type { ChartData, ChartOptions } from "chart.js";
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -10,9 +9,10 @@ import {
   Title,
   Tooltip,
 } from "chart.js";
-import { Activity, Database, Thermometer, Wifi } from "lucide-react";
+import { Activity, Database, Wifi } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Line } from "react-chartjs-2";
+import { TelemetryChart } from "./components/Chart";
+import { TelemetryTable } from "./components/Table";
 
 ChartJS.register(
   CategoryScale,
@@ -24,7 +24,7 @@ ChartJS.register(
   Legend,
 );
 
-interface Telemetry {
+export interface Telemetry {
   machine_id: string;
   temperature: number;
   status: string;
@@ -76,43 +76,6 @@ function App() {
     };
   }, []);
 
-  const chartData: ChartData<"line"> = {
-    labels: data.map((d) => new Date(d.timestamp).toLocaleTimeString()),
-    datasets: [
-      {
-        label: "Temperatura (°C)",
-        data: data.map((d) => d.temperature),
-        borderColor: "#fb923c",
-        backgroundColor: "rgba(251, 146, 60, 0.5)",
-        borderWidth: 3,
-        tension: 0.3,
-        pointRadius: data.length > 30 ? 0 : 3,
-      },
-    ],
-  };
-
-  const options: ChartOptions<"line"> = {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: false,
-    scales: {
-      x: {
-        display: false,
-        grid: { display: false },
-      },
-      y: {
-        ticks: { color: "#94a3b8" },
-        grid: { color: "#334155" },
-        suggestedMin: 20,
-        suggestedMax: 80,
-      },
-    },
-    plugins: {
-      legend: { display: true, labels: { color: "#000000" } },
-      tooltip: { enabled: true },
-    },
-  };
-
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 p-8 font-sans">
       <header className="flex justify-between items-center mb-8 border-b border-slate-700 pb-4">
@@ -128,33 +91,16 @@ function App() {
       </header>
 
       <main className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg min-w-0">
-          <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
-            <Thermometer className="text-orange-400" /> Monitoramento Térmico
-          </h2>
-          <div className="h-[400px] w-full">
-            <Line data={chartData} options={options} />
-          </div>
+        <div className="lg:col-span-2">
+          <TelemetryChart data={data} />
         </div>
 
-        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg h-[480px] flex flex-col">
+        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg h-120 lg:h-150 flex flex-col">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Database className="text-blue-400" /> Live Stream
           </h2>
-          <div className="space-y-3 overflow-y-auto flex-1 pr-2">
-            {[...data].reverse().map((item, idx) => (
-              <div
-                key={idx}
-                className="bg-slate-700/50 p-3 rounded-lg border border-slate-600 flex justify-between items-center"
-              >
-                <span className="font-mono text-xs text-emerald-300">
-                  {item.machine_id.split("-")[0]}
-                </span>
-                <span className="font-bold text-orange-400">
-                  {item.temperature.toFixed(1)}°C
-                </span>
-              </div>
-            ))}
+          <div className="space-y-3 overflow-y-auto flex-1 pr-2 custom-scrollbar">
+            <TelemetryTable data={data} />
           </div>
         </div>
       </main>
