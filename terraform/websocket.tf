@@ -39,3 +39,10 @@ resource "aws_apigatewayv2_integration" "ws_connect" {
   integration_type = "AWS_PROXY"
   integration_uri  = aws_lambda_function.ws_connect.invoke_arn
 }
+
+resource "aws_lambda_permission" "ws_connect_permission" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.ws_connect.function_name
+  principal     = "apigateway.amazonaws.com"
+}
