@@ -19,3 +19,23 @@ resource "aws_apigatewayv2_stage" "dev" {
   name        = "dev"
   auto_deploy = true
 }
+
+resource "aws_lambda_function" "ws_connect" {
+  filename         = data.archive_file.query_zip.output_path
+  function_name    = "ws_connect"
+  role             = aws_iam_role.lambda_exec.arn
+  handler          = "ws_connect.handler"
+  runtime          = "python3.12"
+}
+
+resource "aws_apigatewayv2_route" "connect" {
+  api_id    = aws_apigatewayv2_api.telemetry_ws.id
+  route_key = "$connect"
+  target    = "integrations/${aws_apigatewayv2_integration.ws_connect.id}"
+}
+
+resource "aws_apigatewayv2_integration" "ws_connect" {
+  api_id           = aws_apigatewayv2_api.telemetry_ws.id
+  integration_type = "AWS_PROXY"
+  integration_uri  = aws_lambda_function.ws_connect.invoke_arn
+}
