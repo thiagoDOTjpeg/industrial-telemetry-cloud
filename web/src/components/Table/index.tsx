@@ -1,4 +1,4 @@
-import { Activity, Clock, Cpu, Thermometer } from "lucide-react";
+import { Activity, Clock, Cpu, Thermometer, Waves } from "lucide-react";
 import React from "react";
 import { useTelemetryStore } from "../../store/useTelemetryStore";
 
@@ -39,6 +39,11 @@ export const TelemetryTable: React.FC = () => {
             </th>
             <th className="px-6 py-4 font-semibold">
               <div className="flex items-center gap-2">
+                <Waves size={14} /> Vibração (mm/s)
+              </div>
+            </th>
+            <th className="px-6 py-4 font-semibold">
+              <div className="flex items-center gap-2">
                 <Activity size={14} /> Status
               </div>
             </th>
@@ -62,6 +67,9 @@ export const TelemetryTable: React.FC = () => {
               </td>
               <td className="px-6 py-4 text-sm font-medium">
                 {item.temperature.toFixed(1)}°C
+              </td>
+              <td className="px-6 py-4 text-sm font-medium">
+                {item.vibration_level.toFixed(2)}
               </td>
               <td className="px-6 py-4">
                 <span
