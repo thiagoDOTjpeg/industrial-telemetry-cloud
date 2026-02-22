@@ -19,7 +19,7 @@ DB_HOST = DB_ENDPOINT.split(':')[0]
 def get_auth_token():
     return client.generate_db_auth_token(
         DBHostname=DB_HOST,
-        Port=5432,
+        Port=DB_PORT,
         DBUsername=DB_USER,
         Region=AWS_REGION
     )
