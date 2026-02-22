@@ -38,7 +38,7 @@ def send_to_conn(conn_id, payload):
         print(f"Tentando enviar para {conn_id} no endpoint {WS_ENDPOINT}")
         api_client.post_to_connection(ConnectionId=conn_id, Data=payload)
     except Exception as e:
-        print(f"FALHA NO BROADCAST: {str(e)}") # <--- ISSO VAI TE DAR A RESPOSTA
+        print(f"FALHA NO BROADCAST: {str(e)}") 
         table.delete_item(Key={'connectionId': conn_id})
 
 def lambda_handler(event, context):
@@ -59,8 +59,8 @@ def lambda_handler(event, context):
             data = json.loads(record.get("body", ""))
             telemetry_batch.append(data)
             cur.execute(
-                "INSERT INTO telemetry (machine_id, temperature, status) VALUES (%s, %s, %s)",
-                (data['machine_id'], data['temperature'], data['status'])
+                "INSERT INTO telemetry (machine_id, temperature, status, vibration_level) VALUES (%s, %s, %s, %s)",
+                (data['machine_id'], data['temperature'], data['status'], data['vibration_level'])
             )
             
         db_conn.commit()

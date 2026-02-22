@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS telemetry (
     id SERIAL PRIMARY KEY,
     machine_id TEXT NOT NULL,
     temperature FLOAT NOT NULL,
+    vibration_level FLOAT NOT NULL,
     status TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
