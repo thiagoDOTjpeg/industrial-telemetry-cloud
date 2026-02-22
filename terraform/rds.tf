@@ -41,7 +41,7 @@ resource "aws_secretsmanager_secret_version" "db_secret_val" {
     password = var.db_password
     engine   = "postgres"
     host     = aws_db_instance.main-db.address
-    port     = 4510
+    port     = 5432
   })
 }
 

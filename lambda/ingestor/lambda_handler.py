@@ -8,17 +8,17 @@ from concurrent.futures import ThreadPoolExecutor
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+AWS_REGION = os.getenv("AWS_REGION")
 DB_ENDPOINT = os.getenv("DB_ENDPOINT")
-DB_PORT = os.getenv("DB_PORT", "4510")
+DB_PORT = int(os.getenv("DB_PORT"))
 DB_USER = os.getenv("DB_USER")
 DB_NAME = os.getenv("DB_NAME")
 LOCALSTACK_URL = "http://localhost.localstack.cloud:4566"
-WS_API_ID = "4747fe6e"
+WS_API_ID = "f1159249"
 
 WS_ENDPOINT = f"http://{WS_API_ID}.execute-api.localhost.localstack.cloud:4566/dev"
 
-rds_client = boto3.client('rds', region_name=AWS_REGION)
+rds_client = boto3.client('rds', region_name=AWS_REGION, endpoint_url=LOCALSTACK_URL)
 dynamodb = boto3.resource('dynamodb', endpoint_url=LOCALSTACK_URL)
 table = dynamodb.Table('websocket-connections')
 api_client = boto3.client(
@@ -30,7 +30,7 @@ DB_HOST = DB_ENDPOINT.split(':')[0]
 
 def get_auth_token():
     return rds_client.generate_db_auth_token(
-        DBHostname=DB_HOST, Port=int(DB_PORT), DBUsername=DB_USER, Region=AWS_REGION
+        DBHostname=DB_HOST, Port=DB_PORT, DBUsername=DB_USER, Region=AWS_REGION
     )
 
 def send_to_conn(conn_id, payload):
@@ -47,8 +47,13 @@ def lambda_handler(event, context):
     
     try:
         db_conn = psycopg2.connect(
-            host=DB_HOST, database=DB_NAME, user=DB_USER,
-            password=token, port=DB_PORT, connect_timeout=5, sslmode='disable'
+            host=DB_HOST, 
+            database=DB_NAME,
+            user=DB_USER,
+            password=token,
+            port=DB_PORT,
+            connect_timeout=5,
+            sslmode='disable'
         )
         cur = db_conn.cursor()
         

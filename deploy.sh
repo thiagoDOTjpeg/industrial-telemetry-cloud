@@ -35,21 +35,12 @@ terraform apply -auto-approve
 echo "Configurando banco de dados e permissoes SQL..."
 
 DB_HOST="127.0.0.1"
-DB_PORT="4510"
+DB_PORT="4511"
 DB_USER="admin"
 DB_PASS="admin"
 DB_NAME="test"
 
 SQL_SCRIPT=$(cat <<EOF
-
-DO \$\$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'telemetry_user') THEN
-        CREATE USER telemetry_user;
-    END IF;
-END
-\$\$;
-
 DO \$\$
 BEGIN
     IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'grafana_reader') THEN
@@ -80,9 +71,9 @@ CREATE TABLE IF NOT EXISTS telemetry (
 );
 
 GRANT SELECT ON telemetry TO lambda_api_user;
-GRANT INSERT ON telemetry TO telemetry_user;
+GRANT INSERT ON telemetry TO lambda_api_user;
 GRANT SELECT ON telemetry TO grafana_reader;
-GRANT USAGE, SELECT ON SEQUENCE telemetry_id_seq TO telemetry_user;
+GRANT USAGE, SELECT ON SEQUENCE telemetry_id_seq TO lambda_api_user;
 EOF
 )
 

@@ -9,11 +9,12 @@ logger.setLevel(logging.INFO)
 
 AWS_REGION = os.getenv("AWS_REGION")
 DB_ENDPOINT = os.getenv("DB_ENDPOINT")
-DB_PORT = os.getenv("DB_PORT", "5432")
+DB_PORT = int(os.getenv("DB_PORT"))
 DB_USER = os.getenv("DB_USER")
 DB_NAME = os.getenv("DB_NAME")
+LOCALSTACK_URL = "http://localhost.localstack.cloud:4566"
 
-client = boto3.client('rds', region_name=AWS_REGION)
+client = boto3.client('rds', region_name=AWS_REGION, endpoint_url=LOCALSTACK_URL)
 DB_HOST = DB_ENDPOINT.split(':')[0]
 
 def get_auth_token():
