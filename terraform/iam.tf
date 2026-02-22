@@ -133,7 +133,7 @@ resource "aws_iam_role_policy" "lambda_ws_broadcast" {
           "dynamodb:PutItem",
           "dynamodb:DeleteItem"
         ]
-        Resource = aws_dynamodb_table.connections.arn
+        Resource = aws_dynamodb_table.ws_connections.arn
       },
       {
         Effect = "Allow"
