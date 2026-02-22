@@ -3,70 +3,70 @@ import logging
 import psycopg2
 import boto3
 import os
-
-AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-DB_ENDPOINT = os.getenv("DB_ENDPOINT")
-DB_PORT = os.getenv("DB_PORT", "5432")
-DB_USER = os.getenv("DB_USER", "admin")
-DB_NAME = os.getenv("DB_NAME", "postgres")
-
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-client = boto3.client('rds', region_name=AWS_REGION)
+AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+DB_ENDPOINT = os.getenv("DB_ENDPOINT")
+DB_PORT = os.getenv("DB_PORT", "4510")
+DB_USER = os.getenv("DB_USER")
+DB_NAME = os.getenv("DB_NAME")
+
+rds_client = boto3.client('rds', region_name=AWS_REGION)
+dynamodb = boto3.resource('dynamodb')
+table = dynamodb.Table('websocket-connections')
+api_client = boto3.client('apigatewaymanagementapi', endpoint_url="http://localhost:4566")
 
 DB_HOST = DB_ENDPOINT.split(':')[0]
 
 def get_auth_token():
-    return client.generate_db_auth_token(
-        DBHostname=DB_HOST,
-        Port=DB_PORT,
-        DBUsername=DB_USER,
-        Region=AWS_REGION
+    return rds_client.generate_db_auth_token(
+        DBHostname=DB_HOST, Port=int(DB_PORT), DBUsername=DB_USER, Region=AWS_REGION
     )
 
+def send_to_conn(conn_id, payload):
+    try:
+        api_client.post_to_connection(ConnectionId=conn_id, Data=payload)
+    except Exception:
+        table.delete_item(Key={'connectionId': conn_id})
 
 def lambda_handler(event, context):
     token = get_auth_token()
+    db_conn = None
     
-    conn = None
     try:
-        conn = psycopg2.connect(
-            host=DB_HOST,
-            database=DB_NAME,
-            user=DB_USER,
-            password=token,
-            port=DB_PORT,
-            connect_timeout=5,
-            sslmode='disable' 
+        db_conn = psycopg2.connect(
+            host=DB_HOST, database=DB_NAME, user=DB_USER,
+            password=token, port=DB_PORT, connect_timeout=5, sslmode='disable'
         )
+        cur = db_conn.cursor()
         
-        cur = conn.cursor()
-
         records = event.get("Records", [])
+        telemetry_batch = []
         
         for record in records:
-            message_body = record.get("body", "")
-
-            message_data = json.loads(message_body)
-
-            logger.info("telemetry received")
+            data = json.loads(record.get("body", ""))
+            telemetry_batch.append(data)
+            cur.execute(
+                "INSERT INTO telemetry (machine_id, temperature, status) VALUES (%s, %s, %s)",
+                (data['machine_id'], data['temperature'], data['status'])
+            )
             
-            query = "INSERT INTO telemetry (machine_id, temperature, status) VALUES (%s, %s, %s)"
-            cur.execute(query, (
-                message_data['machine_id'], 
-                message_data['temperature'], 
-                message_data['status']
-            ))
-            
-        conn.commit()
+        db_conn.commit()
         cur.close()
-        return {'statusCode': 200, 'body': json.dumps('Sucesso')}
 
+        if telemetry_batch:
+            payload = json.dumps(telemetry_batch)
+            connections = table.scan(ProjectionExpression="connectionId").get('Items', [])
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                for item in connections:
+                    executor.submit(send_to_conn, item['connectionId'], payload)
+                
+        return {'statusCode': 200, 'body': 'Sucesso'}
     except Exception as e:
-        logger.error(f"Erro na conexão ou execução: {e}")
+        logger.error(f"Erro: {e}")
         raise e
     finally:
-        if conn:
-            conn.close()
+        if db_conn: db_conn.close()

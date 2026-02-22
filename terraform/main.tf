@@ -16,6 +16,8 @@ provider "aws" {
     rds            = var.provider_localhost
     secretsmanager = var.provider_localhost
     apigateway     = var.provider_localhost
+    dynamodb       = var.provider_localhost
+    apigatewayv2   = var.provider_localhost
   }
 }
 

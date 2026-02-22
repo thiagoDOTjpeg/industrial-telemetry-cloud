@@ -119,6 +119,31 @@ resource "aws_iam_policy" "grafana_policy" {
   })
 }
 
+resource "aws_iam_role_policy" "lambda_ws_broadcast" {
+  name = "lambda_ws_broadcast_policy"
+  role = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:Scan",
+          "dynamodb:PutItem",
+          "dynamodb:DeleteItem"
+        ]
+        Resource = aws_dynamodb_table.connections.arn
+      },
+      {
+        Effect = "Allow"
+        Action = "execute-api:ManageConnections"
+        Resource = "arn:aws:execute-api:${var.aws_region}:*:*"
+      }
+    ]
+  })
+}
+
 resource "aws_iam_user" "grafana_external" {
   name = "grafana-external-user"
 }
