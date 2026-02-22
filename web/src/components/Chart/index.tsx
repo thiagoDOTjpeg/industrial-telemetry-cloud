@@ -1,4 +1,4 @@
-import type { ChartData, ChartOptions } from "chart.js";
+import type { ChartOptions } from "chart.js";
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -10,9 +10,8 @@ import {
   Tooltip,
 } from "chart.js";
 import { Thermometer } from "lucide-react";
-import React from "react";
 import { Line } from "react-chartjs-2";
-import type { Telemetry } from "../../App";
+import { useTelemetryStore } from "../../store/useTelemetryStore";
 
 ChartJS.register(
   CategoryScale,
@@ -24,12 +23,10 @@ ChartJS.register(
   Legend,
 );
 
-interface ChartProps {
-  data: Telemetry[];
-}
+export default function TelemetryChart() {
+  const data = useTelemetryStore((state) => state.data);
 
-export const TelemetryChart: React.FC<ChartProps> = ({ data }) => {
-  const chartData: ChartData<"line"> = {
+  const chartData = {
     labels: data.map((d) => new Date(d.timestamp).toLocaleTimeString()),
     datasets: [
       {
@@ -87,4 +84,4 @@ export const TelemetryChart: React.FC<ChartProps> = ({ data }) => {
       </div>
     </div>
   );
-};
+}

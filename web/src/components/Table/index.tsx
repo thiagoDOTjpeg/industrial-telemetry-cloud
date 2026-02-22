@@ -1,17 +1,17 @@
 import { Activity, Clock, Cpu, Thermometer } from "lucide-react";
 import React from "react";
-import type { Telemetry } from "../../App";
+import { useTelemetryStore } from "../../store/useTelemetryStore";
 
-interface TableProps {
-  data: Telemetry[];
-  loading?: boolean;
-}
+export const TelemetryTable: React.FC = () => {
+  const data = useTelemetryStore((state) => state.data);
+  const connected = useTelemetryStore((state) => state.connected);
 
-export const TelemetryTable: React.FC<TableProps> = ({ data, loading }) => {
-  if (loading) {
+  const isLoading = connected && data.length === 0;
+
+  if (isLoading) {
     return (
       <div className="p-8 text-center text-slate-500 animate-pulse">
-        Carregando dados industriais...
+        Sincronizando dados industriais...
       </div>
     );
   }
@@ -25,9 +25,9 @@ export const TelemetryTable: React.FC<TableProps> = ({ data, loading }) => {
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-700 bg-slate-800 shadow-2xl">
+    <div className="overflow-x-auto rounded-xl border border-slate-700 bg-slate-800 shadow-2xl relative">
       <table className="w-full text-left border-collapse">
-        <thead>
+        <thead className="sticky top-0 z-10 bg-slate-900 shadow-sm">
           <tr className="border-b border-slate-700 bg-slate-900/50 text-slate-400 text-xs uppercase tracking-wider">
             <th className="px-6 py-4 font-semibold flex items-center gap-2">
               <Cpu size={14} /> Máquina
