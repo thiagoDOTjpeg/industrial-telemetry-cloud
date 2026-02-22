@@ -13,13 +13,17 @@ DB_ENDPOINT = os.getenv("DB_ENDPOINT")
 DB_PORT = os.getenv("DB_PORT", "4510")
 DB_USER = os.getenv("DB_USER")
 DB_NAME = os.getenv("DB_NAME")
+LOCALSTACK_URL = "http://localhost.localstack.cloud:4566"
+WS_API_ID = "4747fe6e"
+
+WS_ENDPOINT = f"http://{WS_API_ID}.execute-api.localhost.localstack.cloud:4566/dev"
 
 rds_client = boto3.client('rds', region_name=AWS_REGION)
-dynamodb = boto3.resource('dynamodb')
+dynamodb = boto3.resource('dynamodb', endpoint_url=LOCALSTACK_URL)
 table = dynamodb.Table('websocket-connections')
 api_client = boto3.client(
     'apigatewaymanagementapi', 
-    endpoint_url="http://localhost.localstack.cloud:4566"
+    endpoint_url=WS_ENDPOINT
 )
 
 DB_HOST = DB_ENDPOINT.split(':')[0]
@@ -31,8 +35,10 @@ def get_auth_token():
 
 def send_to_conn(conn_id, payload):
     try:
+        print(f"Tentando enviar para {conn_id} no endpoint {WS_ENDPOINT}")
         api_client.post_to_connection(ConnectionId=conn_id, Data=payload)
-    except Exception:
+    except Exception as e:
+        print(f"FALHA NO BROADCAST: {str(e)}") # <--- ISSO VAI TE DAR A RESPOSTA
         table.delete_item(Key={'connectionId': conn_id})
 
 def lambda_handler(event, context):
