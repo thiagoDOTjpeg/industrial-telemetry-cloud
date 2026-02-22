@@ -6,7 +6,7 @@ data "archive_file" "ingestor_zip" {
 
 data "archive_file" "query_zip" {
   type        = "zip"
-  source_file = "${path.module}/../lambda/query/get_telemetry.py"
+  source_dir = "${path.module}/../lambda/query"
   output_path = "${path.module}/query_handler.zip"
 }
 
