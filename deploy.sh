@@ -34,7 +34,24 @@ terraform apply -auto-approve
 
 echo "Configurando banco de dados e permissoes SQL..."
 
-DB_HOST="localhost"
+if [ -z "$REST_API_ID" ] || [ "$REST_API_ID" == "null" ]; then
+    echo "ERRO: Nao foi possivel capturar o REST_API_ID."
+    exit 1
+fi
+
+REST_API_ID=$(aws --endpoint-url=http://localhost:4566 apigateway get-rest-apis | grep -o '"id": "[^"]*' | grep -o '[^"]*$')
+VITE_REST_URL="http://athens.gritti.dev.br:4566/restapis/$REST_API_ID/dev/_user_request_/telemetry"
+
+VITE_WS_URL="ws://athens.gritti.dev.br:4510/dev"
+
+echo "Gerando arquivo .env..."
+
+cat <<EOF > "$PROJECT_ROOT/web/.env"
+VITE_REST_URL=$VITE_REST_URL
+VITE_WS_URL=$VITE_WS_URL
+EOF
+
+DB_HOST="127.0.0.1"
 DB_PORT="4511"
 DB_USER="admin"
 DB_PASS="admin"
