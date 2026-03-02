@@ -16,8 +16,8 @@ export interface Telemetry {
   timestamp: string;
 }
 
-const REST_URL = `http://athens.gritti.dev.br:4566/restapis/q7xfd3s42i/dev/_user_request_/telemetry`;
-const WS_URL = `ws://athens.gritti.dev.br:4510/dev`;
+const REST_URL = String(import.meta.env.VITE_REST_URL) || "";
+const WS_URL = String(import.meta.env.VITE_WS_URL) || "";
 
 function App() {
   const { setInitialData, addBatch, setConnected, connected } =
@@ -45,13 +45,13 @@ function App() {
   }, [addBatch, setConnected]);
 
   return (
-    <div className="min-h-screen bg-slate-950 bg-[radial-gradient(circle_at_top_right,var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 p-4 md:p-8">
+    <div className="min-h-screen bg-slate-950 from-slate-900 via-slate-950 to-black text-slate-100 p-4 md:p-8">
       <a href="#main-content" className="skip-link">
         Pular para o conteúdo principal
       </a>
 
       <header
-        className="max-w-7xl mx-auto flex justify-between items-center mb-8 border-b border-slate-800/60 pb-6"
+        className="max-w-8xl mx-auto flex justify-between items-center mb-8 border-b border-slate-800/60 pb-6"
         role="banner"
         aria-label="Cabeçalho do sistema de monitoramento"
       >
@@ -125,7 +125,7 @@ function App() {
       ) : (
         <main
           id="main-content"
-          className="max-w-7xl mx-auto grid grid-cols-12 gap-6"
+          className="max-w-8xl mx-auto grid grid-cols-12 gap-6"
           role="main"
           aria-label="Painel de monitoramento de telemetria"
         >

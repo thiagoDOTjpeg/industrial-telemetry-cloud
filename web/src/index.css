@@ -64,3 +64,7 @@ body {
 .skip-link:focus {
   top: var(--space-4);
 }
+
+.max-w-8xl {
+  max-width: 1536px;
+}
