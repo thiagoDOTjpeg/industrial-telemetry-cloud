@@ -34,7 +34,7 @@ terraform apply -auto-approve
 
 echo "Configurando banco de dados e permissoes SQL..."
 
-DB_HOST="127.0.0.1"
+DB_HOST="localhost"
 DB_PORT="4511"
 DB_USER="admin"
 DB_PASS="admin"
@@ -58,7 +58,6 @@ END
 \$\$;
 
 GRANT rds_iam TO lambda_api_user;
-GRANT rds_iam TO telemetry_user;
 GRANT rds_iam TO grafana_reader;
 
 CREATE TABLE IF NOT EXISTS telemetry (
@@ -76,18 +75,30 @@ GRANT SELECT ON telemetry TO grafana_reader;
 GRANT USAGE, SELECT ON SEQUENCE telemetry_id_seq TO lambda_api_user;
 EOF
 )
-
 MAX_RETRIES=10
 COUNT=0
-until PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "$SQL_SCRIPT" > /dev/null 2>&1; do
+ERROR_LOG=$(mktemp)
+
+echo "Tentando configurar o banco de dados..."
+
+until PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "$SQL_SCRIPT" > /dev/null 2> "$ERROR_LOG"; do
     COUNT=$((COUNT + 1))
+    
+    echo "Falha na tentativa $COUNT/$MAX_RETRIES. Erro:"
+    sed 's/^/  [PSQL ERR] /' "$ERROR_LOG"
+    
     if [ $COUNT -ge $MAX_RETRIES ]; then
-        echo "ERRO: Falha ao configurar banco de dados apos $MAX_RETRIES tentativas."
+        echo "--------------------------------------------------------"
+        echo "ERRO FATAL: Falha ao configurar banco de dados após $MAX_RETRIES tentativas."
+        echo "Log final do erro:"
+        cat "$ERROR_LOG"
+        rm -f "$ERROR_LOG"
         exit 1
     fi
-    echo "Aguardando disponibilidade do banco (Tentativa $COUNT/$MAX_RETRIES)..."
+    
+    echo "Aguardando disponibilidade do banco... (5s)"
     sleep 5
 done
 
+rm -f "$ERROR_LOG"
 echo "Configuracao SQL finalizada com sucesso."
-echo "Deploy finalizado!"
