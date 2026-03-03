@@ -112,6 +112,20 @@ const MAX_RETRIES = 4;
 const BASE_DELAY = 1000;
 const MAX_DELAY = 16000;
 
+interface PersistentStats {
+  minTemp: number;
+  maxTemp: number;
+  vibSum: number;
+  vibCount: number;
+}
+
+const initialPersistentStats: PersistentStats = {
+  minTemp: Infinity,
+  maxTemp: -Infinity,
+  vibSum: 0,
+  vibCount: 0,
+};
+
 export function MachineDetailModal({
   machineId,
   isOpen,
@@ -121,6 +135,9 @@ export function MachineDetailModal({
 }: MachineDetailModalProps) {
   const [filters, setFilters] = useState<ModalFilters>({ ...defaultFilters });
   const [wsData, setWsData] = useState<Telemetry[]>([]);
+  const [persistentStats, setPersistentStats] = useState<PersistentStats>({
+    ...initialPersistentStats,
+  });
 
   const filtersRef = useRef(filters);
   const machineIdRef = useRef(machineId);
@@ -131,7 +148,10 @@ export function MachineDetailModal({
   }, [filters, machineId]);
 
   useEffect(() => {
-    queueMicrotask(() => setWsData([]));
+    queueMicrotask(() => {
+      setWsData([]);
+      setPersistentStats({ ...initialPersistentStats });
+    });
   }, [machineId, filters]);
 
   const buildQueryUrl = useCallback(() => {
@@ -162,6 +182,22 @@ export function MachineDetailModal({
       Math.min(BASE_DELAY * Math.pow(2, attemptIndex), MAX_DELAY),
   });
 
+  useEffect(() => {
+    if (initialData && initialData.length > 0) {
+      queueMicrotask(() => {
+        const temps = initialData.map((d) => d.temperature);
+        const vibs = initialData.map((d) => d.vibration_level);
+
+        setPersistentStats({
+          minTemp: Math.min(...temps),
+          maxTemp: Math.max(...temps),
+          vibSum: vibs.reduce((a, b) => a + b, 0),
+          vibCount: vibs.length,
+        });
+      });
+    }
+  }, [initialData]);
+
   const handleWsMessage = useCallback((batch: Telemetry[]) => {
     const currentFilters = filtersRef.current;
     const currentMachineId = machineIdRef.current;
@@ -177,6 +213,18 @@ export function MachineDetailModal({
       setWsData((prev) => {
         const maxSize = Math.min(currentFilters.limit, MAX_MODAL_DATA_SIZE);
         return [...prev, ...filteredBatch].slice(-maxSize);
+      });
+
+      setPersistentStats((prev) => {
+        const newTemps = filteredBatch.map((d) => d.temperature);
+        const newVibs = filteredBatch.map((d) => d.vibration_level);
+
+        return {
+          minTemp: Math.min(prev.minTemp, ...newTemps),
+          maxTemp: Math.max(prev.maxTemp, ...newTemps),
+          vibSum: prev.vibSum + newVibs.reduce((a, b) => a + b, 0),
+          vibCount: prev.vibCount + newVibs.length,
+        };
       });
     }
   }, []);
@@ -204,6 +252,7 @@ export function MachineDetailModal({
 
   const handleResetFilters = () => {
     setWsData([]);
+    setPersistentStats({ ...initialPersistentStats });
     setFilters({ ...defaultFilters });
   };
 
@@ -268,20 +317,28 @@ export function MachineDetailModal({
   const stats = useMemo(() => {
     if (!data || data.length === 0) return null;
 
-    const temps = data.map((d) => d.temperature);
-    const vibs = data.map((d) => d.vibration_level);
     const latestStatus = data[data.length - 1]?.status || "OPERATIONAL";
 
+    // Usar stats persistentes em vez de calcular do array atual
+    const hasValidStats = persistentStats.minTemp !== Infinity;
+
     return {
-      avgTemp: (temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1),
-      maxTemp: Math.max(...temps).toFixed(1),
-      minTemp: Math.min(...temps).toFixed(1),
-      avgVib: (vibs.reduce((a, b) => a + b, 0) / vibs.length).toFixed(2),
-      maxVib: Math.max(...vibs).toFixed(2),
+      avgTemp: hasValidStats
+        ? ((persistentStats.minTemp + persistentStats.maxTemp) / 2).toFixed(1)
+        : "0.0",
+      maxTemp: hasValidStats ? persistentStats.maxTemp.toFixed(1) : "0.0",
+      minTemp: hasValidStats ? persistentStats.minTemp.toFixed(1) : "0.0",
+      avgVib:
+        persistentStats.vibCount > 0
+          ? (persistentStats.vibSum / persistentStats.vibCount).toFixed(2)
+          : "0.00",
+      maxVib: hasValidStats
+        ? Math.max(...data.map((d) => d.vibration_level)).toFixed(2)
+        : "0.00",
       status: latestStatus,
       totalRecords: data.length,
     };
-  }, [data]);
+  }, [data, persistentStats]);
 
   const chartOptions = {
     responsive: true,
