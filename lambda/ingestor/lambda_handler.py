@@ -14,7 +14,7 @@ DB_PORT = int(os.getenv("DB_PORT"))
 DB_USER = os.getenv("DB_USER")
 DB_NAME = os.getenv("DB_NAME")
 LOCALSTACK_URL = "http://localhost.localstack.cloud:4566"
-WS_API_ID = "f1159249"
+WS_API_ID = "2bd6ca48"
 
 WS_ENDPOINT = f"http://{WS_API_ID}.execute-api.localhost.localstack.cloud:4566/dev"
 
