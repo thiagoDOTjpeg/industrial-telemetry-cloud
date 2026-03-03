@@ -1,8 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Activity, Database, Wifi, WifiOff } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import TelemetryChart from "./components/Chart";
+import { FilterBar } from "./components/FilterBar";
+import { MachineDetailModal } from "./components/MachineDetailModal";
+import { MachineList } from "./components/MachineList";
 import StatusChart from "./components/StatusChart";
 import { TelemetryTable } from "./components/TelemetryTable";
 import VibrationChart from "./components/VibrationChart";
@@ -20,20 +23,39 @@ const REST_URL = String(import.meta.env.VITE_REST_URL) || "";
 const WS_URL = String(import.meta.env.VITE_WS_URL) || "";
 
 function App() {
-  const { setInitialData, addBatch, setConnected, connected } =
+  const { setInitialData, addBatch, setConnected, connected, filters } =
     useTelemetryStore();
   const ws = useRef<WebSocket | null>(null);
+  const [selectedMachineId, setSelectedMachineId] = useState<string | null>(
+    null,
+  );
 
-  const { isLoading } = useQuery({
-    queryKey: ["telemetry-history"],
+  // Construir URL com filtros
+  const buildQueryUrl = useCallback(() => {
+    const params = new URLSearchParams();
+    if (filters.machineId) params.append("machine_id", filters.machineId);
+    if (filters.status) params.append("status", filters.status);
+    if (filters.interval) params.append("interval", filters.interval);
+    if (filters.limit) params.append("limit", String(filters.limit));
+    const queryString = params.toString();
+    return queryString ? `${REST_URL}?${queryString}` : REST_URL;
+  }, [filters]);
+
+  const { isLoading, refetch } = useQuery({
+    queryKey: ["telemetry-history", filters],
     queryFn: async () => {
-      const res = await axios.get(REST_URL);
+      const url = buildQueryUrl();
+      const res = await axios.get(url);
       const history = (res.data as Telemetry[]).reverse();
       setInitialData(history);
       return history;
     },
     refetchOnWindowFocus: false,
   });
+
+  const handleApplyFilters = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   useEffect(() => {
     const socket = new WebSocket(WS_URL);
@@ -106,6 +128,10 @@ function App() {
         </div>
       </header>
 
+      <div className="max-w-8xl mx-auto">
+        <FilterBar onApplyFilters={handleApplyFilters} />
+      </div>
+
       {isLoading ? (
         <div
           className="h-[60vh] flex flex-col items-center justify-center gap-4"
@@ -136,8 +162,13 @@ function App() {
             <h2 id="status-heading" className="sr-only">
               Status da Frota
             </h2>
-            <div className="h-full">
-              <StatusChart />
+            <div className="grid grid-rows-2 gap-6 h-full">
+              <div className="min-h-[280px]">
+                <StatusChart />
+              </div>
+              <div className="min-h-[280px]">
+                <MachineList onSelectMachine={setSelectedMachineId} />
+              </div>
             </div>
           </section>
 
@@ -203,6 +234,14 @@ function App() {
           &copy; 2026 Industrial Telemetry System &bull; Localstack Environment
         </p>
       </footer>
+
+      {/* Machine Detail Modal */}
+      <MachineDetailModal
+        machineId={selectedMachineId || ""}
+        isOpen={!!selectedMachineId}
+        onClose={() => setSelectedMachineId(null)}
+        restUrl={REST_URL}
+      />
     </div>
   );
 }

@@ -53,7 +53,7 @@ export default function VibrationChart() {
       </p>
 
       <div
-        className="h-64"
+        className="h-80 lg:h-96"
         role="img"
         aria-label={`Gráfico de vibração com ${data.length} pontos de dados`}
       >

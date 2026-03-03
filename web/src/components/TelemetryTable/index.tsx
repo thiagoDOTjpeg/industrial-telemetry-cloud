@@ -158,7 +158,7 @@ export const TelemetryTable: React.FC = () => {
                     "
                     title={item.machine_id}
                   >
-                    {item.machine_id.split("-")[0]}...
+                    {item.machine_id}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm font-medium text-slate-200">
