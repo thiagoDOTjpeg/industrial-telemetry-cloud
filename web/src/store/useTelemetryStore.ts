@@ -27,22 +27,27 @@ const defaultFilters: FilterState = {
   limit: 50,
 };
 
+const MAX_DATA_SIZE = 500;
+
 export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   data: [],
   connected: false,
   filters: { ...defaultFilters },
   setConnected: (status) => set({ connected: status }),
-  setInitialData: (history) => set({ data: history }),
+  setInitialData: (history) => set({ data: history.slice(-MAX_DATA_SIZE) }),
   addBatch: (batch) => set((state) => {
     const { filters } = state;
-    // Filtrar dados WebSocket localmente
     const filteredBatch = batch.filter((item) => {
       if (filters.machineId && item.machine_id !== filters.machineId) return false;
       if (filters.status && item.status !== filters.status) return false;
       return true;
     });
+
+    const maxSize = Math.min(filters.limit, MAX_DATA_SIZE);
+    const newData = [...state.data, ...filteredBatch];
+
     return {
-      data: [...state.data, ...filteredBatch].slice(-filters.limit)
+      data: newData.slice(-maxSize)
     };
   }),
   setFilters: (newFilters) => set((state) => ({

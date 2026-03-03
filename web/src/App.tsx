@@ -241,6 +241,7 @@ function App() {
         isOpen={!!selectedMachineId}
         onClose={() => setSelectedMachineId(null)}
         restUrl={REST_URL}
+        wsUrl={WS_URL}
       />
     </div>
   );

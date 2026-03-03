@@ -18,10 +18,12 @@ import {
   Search,
   Thermometer,
   Vibrate,
+  Wifi,
+  WifiOff,
   X,
   XCircle,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Line } from "react-chartjs-2";
 import type { Telemetry } from "../../App";
 
@@ -40,6 +42,7 @@ interface MachineDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   restUrl: string;
+  wsUrl: string;
 }
 
 interface ModalFilters {
@@ -100,13 +103,20 @@ const defaultFilters: ModalFilters = {
   limit: 50,
 };
 
+// Limite máximo para evitar memory overflow
+const MAX_MODAL_DATA_SIZE = 200;
+
 export function MachineDetailModal({
   machineId,
   isOpen,
   onClose,
   restUrl,
+  wsUrl,
 }: MachineDetailModalProps) {
   const [filters, setFilters] = useState<ModalFilters>({ ...defaultFilters });
+  const [wsData, setWsData] = useState<Telemetry[]>([]);
+  const [wsConnected, setWsConnected] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
 
   const buildQueryUrl = useCallback(() => {
     const params = new URLSearchParams();
@@ -117,7 +127,11 @@ export function MachineDetailModal({
     return `${restUrl}?${params.toString()}`;
   }, [machineId, filters, restUrl]);
 
-  const { data, isLoading, refetch } = useQuery({
+  const {
+    data: initialData,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["machine-detail", machineId, filters],
     queryFn: async () => {
       const url = buildQueryUrl();
@@ -128,11 +142,65 @@ export function MachineDetailModal({
     refetchOnWindowFocus: false,
   });
 
+  // WebSocket connection para atualizações em tempo real
+  useEffect(() => {
+    if (!isOpen || !machineId || !wsUrl) return;
+
+    const socket = new WebSocket(wsUrl);
+    wsRef.current = socket;
+
+    socket.onopen = () => setWsConnected(true);
+    socket.onclose = () => setWsConnected(false);
+    socket.onerror = () => setWsConnected(false);
+
+    socket.onmessage = (event) => {
+      try {
+        const batch: Telemetry[] = JSON.parse(event.data);
+
+        // Filtrar apenas dados da máquina atual e aplicar filtros
+        const filteredBatch = batch.filter((item) => {
+          if (item.machine_id !== machineId) return false;
+          if (filters.status && item.status !== filters.status) return false;
+          return true;
+        });
+
+        if (filteredBatch.length > 0) {
+          setWsData((prev) => {
+            const maxSize = Math.min(filters.limit, MAX_MODAL_DATA_SIZE);
+            return [...prev, ...filteredBatch].slice(-maxSize);
+          });
+        }
+      } catch (e) {
+        console.error("Error parsing WebSocket data:", e);
+      }
+    };
+
+    return () => {
+      socket.close();
+      setWsConnected(false);
+    };
+  }, [isOpen, machineId, wsUrl, filters.status, filters.limit]);
+
+  // Reset wsData quando filtros mudam ou modal abre
+  useEffect(() => {
+    setWsData([]);
+  }, [machineId, filters]);
+
+  // Combinar dados iniciais com dados do WebSocket
+  const data = useMemo(() => {
+    if (!initialData) return wsData;
+    const combined = [...initialData, ...wsData];
+    const maxSize = Math.min(filters.limit, MAX_MODAL_DATA_SIZE);
+    return combined.slice(-maxSize);
+  }, [initialData, wsData, filters.limit]);
+
   const handleApplyFilters = useCallback(() => {
+    setWsData([]); // Limpar dados do WS ao aplicar filtros
     refetch();
   }, [refetch]);
 
   const handleResetFilters = () => {
+    setWsData([]);
     setFilters({ ...defaultFilters });
   };
 
@@ -281,13 +349,40 @@ export function MachineDetailModal({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-            aria-label="Fechar modal"
-          >
-            <X size={24} className="text-slate-400" />
-          </button>
+          <div className="flex items-center gap-3">
+            {/* WebSocket Status */}
+            <div
+              className={`
+                flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold
+                transition-all duration-200
+                ${
+                  wsConnected
+                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                    : "bg-red-500/10 border-red-500/20 text-red-400"
+                }
+              `}
+              role="status"
+              aria-live="polite"
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${wsConnected ? "bg-emerald-400 animate-pulse" : "bg-red-400"}`}
+                aria-hidden="true"
+              />
+              {wsConnected ? (
+                <Wifi size={12} aria-hidden="true" />
+              ) : (
+                <WifiOff size={12} aria-hidden="true" />
+              )}
+              <span>{wsConnected ? "LIVE" : "OFFLINE"}</span>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+              aria-label="Fechar modal"
+            >
+              <X size={24} className="text-slate-400" />
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
