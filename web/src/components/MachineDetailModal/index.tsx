@@ -11,9 +11,11 @@ import {
   Tooltip,
 } from "chart.js";
 import {
+  AlertCircle,
   AlertTriangle,
   CheckCircle2,
   Filter,
+  RefreshCw,
   RotateCcw,
   Search,
   Thermometer,
@@ -26,6 +28,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Line } from "react-chartjs-2";
 import type { Telemetry } from "../../App";
+import { useWebSocket } from "../../hooks/useWebSocket";
 
 ChartJS.register(
   CategoryScale,
@@ -103,8 +106,11 @@ const defaultFilters: ModalFilters = {
   limit: 50,
 };
 
-// Limite máximo para evitar memory overflow
 const MAX_MODAL_DATA_SIZE = 200;
+
+const MAX_RETRIES = 4;
+const BASE_DELAY = 1000;
+const MAX_DELAY = 16000;
 
 export function MachineDetailModal({
   machineId,
@@ -115,8 +121,18 @@ export function MachineDetailModal({
 }: MachineDetailModalProps) {
   const [filters, setFilters] = useState<ModalFilters>({ ...defaultFilters });
   const [wsData, setWsData] = useState<Telemetry[]>([]);
-  const [wsConnected, setWsConnected] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null);
+
+  const filtersRef = useRef(filters);
+  const machineIdRef = useRef(machineId);
+
+  useEffect(() => {
+    filtersRef.current = filters;
+    machineIdRef.current = machineId;
+  }, [filters, machineId]);
+
+  useEffect(() => {
+    queueMicrotask(() => setWsData([]));
+  }, [machineId, filters]);
 
   const buildQueryUrl = useCallback(() => {
     const params = new URLSearchParams();
@@ -130,6 +146,7 @@ export function MachineDetailModal({
   const {
     data: initialData,
     isLoading,
+    isError: restError,
     refetch,
   } = useQuery({
     queryKey: ["machine-detail", machineId, filters],
@@ -140,53 +157,40 @@ export function MachineDetailModal({
     },
     enabled: isOpen && !!machineId,
     refetchOnWindowFocus: false,
+    retry: MAX_RETRIES,
+    retryDelay: (attemptIndex) =>
+      Math.min(BASE_DELAY * Math.pow(2, attemptIndex), MAX_DELAY),
   });
 
-  // WebSocket connection para atualizações em tempo real
-  useEffect(() => {
-    if (!isOpen || !machineId || !wsUrl) return;
+  const handleWsMessage = useCallback((batch: Telemetry[]) => {
+    const currentFilters = filtersRef.current;
+    const currentMachineId = machineIdRef.current;
 
-    const socket = new WebSocket(wsUrl);
-    wsRef.current = socket;
+    const filteredBatch = batch.filter((item) => {
+      if (item.machine_id !== currentMachineId) return false;
+      if (currentFilters.status && item.status !== currentFilters.status)
+        return false;
+      return true;
+    });
 
-    socket.onopen = () => setWsConnected(true);
-    socket.onclose = () => setWsConnected(false);
-    socket.onerror = () => setWsConnected(false);
+    if (filteredBatch.length > 0) {
+      setWsData((prev) => {
+        const maxSize = Math.min(currentFilters.limit, MAX_MODAL_DATA_SIZE);
+        return [...prev, ...filteredBatch].slice(-maxSize);
+      });
+    }
+  }, []);
 
-    socket.onmessage = (event) => {
-      try {
-        const batch: Telemetry[] = JSON.parse(event.data);
+  const {
+    connected: wsConnected,
+    error: wsError,
+    reconnect: handleWsReconnect,
+  } = useWebSocket<Telemetry[]>({
+    url: wsUrl,
+    enabled: isOpen && !!machineId,
+    onMessage: handleWsMessage,
+  });
 
-        // Filtrar apenas dados da máquina atual e aplicar filtros
-        const filteredBatch = batch.filter((item) => {
-          if (item.machine_id !== machineId) return false;
-          if (filters.status && item.status !== filters.status) return false;
-          return true;
-        });
-
-        if (filteredBatch.length > 0) {
-          setWsData((prev) => {
-            const maxSize = Math.min(filters.limit, MAX_MODAL_DATA_SIZE);
-            return [...prev, ...filteredBatch].slice(-maxSize);
-          });
-        }
-      } catch (e) {
-        console.error("Error parsing WebSocket data:", e);
-      }
-    };
-
-    return () => {
-      socket.close();
-      setWsConnected(false);
-    };
-  }, [isOpen, machineId, wsUrl, filters.status, filters.limit]);
-
-  // Reset wsData quando filtros mudam ou modal abre
-  useEffect(() => {
-    setWsData([]);
-  }, [machineId, filters]);
-
-  // Combinar dados iniciais com dados do WebSocket
   const data = useMemo(() => {
     if (!initialData) return wsData;
     const combined = [...initialData, ...wsData];
@@ -195,7 +199,6 @@ export function MachineDetailModal({
   }, [initialData, wsData, filters.limit]);
 
   const handleApplyFilters = useCallback(() => {
-    setWsData([]); // Limpar dados do WS ao aplicar filtros
     refetch();
   }, [refetch]);
 
@@ -204,7 +207,6 @@ export function MachineDetailModal({
     setFilters({ ...defaultFilters });
   };
 
-  // Fechar com ESC
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -219,7 +221,6 @@ export function MachineDetailModal({
     };
   }, [isOpen, onClose]);
 
-  // Dados para os gráficos
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return null;
 
@@ -264,7 +265,6 @@ export function MachineDetailModal({
     };
   }, [data]);
 
-  // Estatísticas da máquina
   const stats = useMemo(() => {
     if (!data || data.length === 0) return null;
 
@@ -457,6 +457,42 @@ export function MachineDetailModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Erro de conexão REST API */}
+          {restError && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="text-red-400" size={20} />
+                <span className="text-red-400 font-medium">
+                  Não foi possível conectar com o servidor
+                </span>
+              </div>
+              <button
+                onClick={() => refetch()}
+                className="flex items-center gap-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
+              >
+                <RefreshCw size={14} />
+                Tentar novamente
+              </button>
+            </div>
+          )}
+
+          {/* Erro de conexão WebSocket */}
+          {wsError && (
+            <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <WifiOff className="text-orange-400" size={20} />
+                <span className="text-orange-400 font-medium">{wsError}</span>
+              </div>
+              <button
+                onClick={handleWsReconnect}
+                className="flex items-center gap-2 px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg transition-colors"
+              >
+                <RefreshCw size={14} />
+                Reconectar
+              </button>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
               <div className="w-10 h-10 border-4 border-slate-700 border-t-emerald-400 rounded-full animate-spin" />

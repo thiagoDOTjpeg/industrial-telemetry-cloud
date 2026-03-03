@@ -1,7 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
-import { Activity, Database, Wifi, WifiOff } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Activity,
+  AlertCircle,
+  Database,
+  RefreshCw,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
+import { useCallback, useState } from "react";
 import TelemetryChart from "./components/Chart";
 import { FilterBar } from "./components/FilterBar";
 import { MachineDetailModal } from "./components/MachineDetailModal";
@@ -9,6 +14,8 @@ import { MachineList } from "./components/MachineList";
 import StatusChart from "./components/StatusChart";
 import { TelemetryTable } from "./components/TelemetryTable";
 import VibrationChart from "./components/VibrationChart";
+import { useTelemetryQuery } from "./hooks/useTelemetryQuery";
+import { useWebSocket } from "./hooks/useWebSocket";
 import { useTelemetryStore } from "./store/useTelemetryStore";
 
 export interface Telemetry {
@@ -19,52 +26,39 @@ export interface Telemetry {
   timestamp: string;
 }
 
-const REST_URL = String(import.meta.env.VITE_REST_URL) || "";
 const WS_URL = String(import.meta.env.VITE_WS_URL) || "";
+const REST_URL = String(import.meta.env.VITE_REST_URL) || "";
 
 function App() {
-  const { setInitialData, addBatch, setConnected, connected, filters } =
-    useTelemetryStore();
-  const ws = useRef<WebSocket | null>(null);
+  const { addBatch, setConnected, connected } = useTelemetryStore();
   const [selectedMachineId, setSelectedMachineId] = useState<string | null>(
     null,
   );
 
-  // Construir URL com filtros
-  const buildQueryUrl = useCallback(() => {
-    const params = new URLSearchParams();
-    if (filters.machineId) params.append("machine_id", filters.machineId);
-    if (filters.status) params.append("status", filters.status);
-    if (filters.interval) params.append("interval", filters.interval);
-    if (filters.limit) params.append("limit", String(filters.limit));
-    const queryString = params.toString();
-    return queryString ? `${REST_URL}?${queryString}` : REST_URL;
-  }, [filters]);
-
-  const { isLoading, refetch } = useQuery({
-    queryKey: ["telemetry-history", filters],
-    queryFn: async () => {
-      const url = buildQueryUrl();
-      const res = await axios.get(url);
-      const history = (res.data as Telemetry[]).reverse();
-      setInitialData(history);
-      return history;
-    },
-    refetchOnWindowFocus: false,
+  const { error: wsError, reconnect: handleWsReconnect } = useWebSocket<
+    Telemetry[]
+  >({
+    url: WS_URL,
+    enabled: true,
+    onMessage: useCallback(
+      (data: Telemetry[]) => {
+        addBatch(data);
+      },
+      [addBatch],
+    ),
+    onConnect: useCallback(() => {
+      setConnected(true);
+    }, [setConnected]),
+    onDisconnect: useCallback(() => {
+      setConnected(false);
+    }, [setConnected]),
   });
+
+  const { isLoading, isError: restError, refetch } = useTelemetryQuery();
 
   const handleApplyFilters = useCallback(() => {
     refetch();
   }, [refetch]);
-
-  useEffect(() => {
-    const socket = new WebSocket(WS_URL);
-    ws.current = socket;
-    socket.onopen = () => setConnected(true);
-    socket.onmessage = (event) => addBatch(JSON.parse(event.data));
-    socket.onclose = () => setConnected(false);
-    return () => socket.close();
-  }, [addBatch, setConnected]);
 
   return (
     <div className="min-h-screen bg-slate-950 from-slate-900 via-slate-950 to-black text-slate-100 p-4 md:p-8">
@@ -132,6 +126,46 @@ function App() {
         <FilterBar onApplyFilters={handleApplyFilters} />
       </div>
 
+      {/* Erro de conexão REST API */}
+      {restError && (
+        <div className="max-w-8xl mx-auto mb-6">
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="text-red-400" size={20} />
+              <span className="text-red-400 font-medium">
+                Não foi possível conectar com o servidor
+              </span>
+            </div>
+            <button
+              onClick={() => refetch()}
+              className="flex items-center gap-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
+            >
+              <RefreshCw size={14} />
+              Tentar novamente
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Erro de conexão WebSocket */}
+      {wsError && (
+        <div className="max-w-8xl mx-auto mb-6">
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <WifiOff className="text-orange-400" size={20} />
+              <span className="text-orange-400 font-medium">{wsError}</span>
+            </div>
+            <button
+              onClick={handleWsReconnect}
+              className="flex items-center gap-2 px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg transition-colors"
+            >
+              <RefreshCw size={14} />
+              Reconectar
+            </button>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <div
           className="h-[60vh] flex flex-col items-center justify-center gap-4"
@@ -163,10 +197,10 @@ function App() {
               Status da Frota
             </h2>
             <div className="grid grid-rows-2 gap-6 h-full">
-              <div className="min-h-[280px]">
+              <div className="min-h-70">
                 <StatusChart />
               </div>
-              <div className="min-h-[280px]">
+              <div className="min-h-70">
                 <MachineList onSelectMachine={setSelectedMachineId} />
               </div>
             </div>
