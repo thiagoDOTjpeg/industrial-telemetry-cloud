@@ -35,10 +35,8 @@ def get_auth_token():
 
 def send_to_conn(conn_id, payload):
     try:
-        print(f"Tentando enviar para {conn_id} no endpoint {WS_ENDPOINT}")
         api_client.post_to_connection(ConnectionId=conn_id, Data=payload)
     except Exception as e:
-        print(f"FALHA NO BROADCAST: {str(e)}") 
         table.delete_item(Key={'connectionId': conn_id})
 
 def lambda_handler(event, context):
@@ -62,6 +60,11 @@ def lambda_handler(event, context):
         
         for record in records:
             data = json.loads(record.get("body", ""))
+
+            if data.get('machine_id') == "POISON_PILL_TEST":
+                logger.error("[TESTE] Poison Pill detectada! Forçando falha para testar a DLQ.")
+                raise ValueError("Erro simulado: Enviando mensagem para a Dead Letter Queue.")
+
             telemetry_batch.append(data)
             cur.execute(
                 "INSERT INTO telemetry (machine_id, temperature, status, vibration_level) VALUES (%s, %s, %s, %s)",

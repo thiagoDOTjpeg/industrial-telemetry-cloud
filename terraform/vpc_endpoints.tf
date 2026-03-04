@@ -22,3 +22,11 @@ resource "aws_vpc_endpoint" "services" {
   security_group_ids  = [aws_security_group.vpc_endpoints_sg.id]
   private_dns_enabled = true
 }
+
+resource "aws_vpc_endpoint" "dynamodb" {
+  vpc_id = aws_vpc.main.id
+  service_name = "com.amazonaws.${var.aws_region}.dynamodb"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids = [aws_route_table.private.id]
+  
+}
