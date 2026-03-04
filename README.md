@@ -4,28 +4,27 @@ Sistema de telemetria industrial serverless na AWS, projetado para ingestão, pr
 
 ## 📋 Índice
 
-- [Visão Geral](#visão-geral)
-- [Arquitetura](#arquitetura)
-- [Decisões de Arquitetura](#decisões-de-arquitetura)
-- [Fluxo de Dados](#fluxo-de-dados)
-- [Segurança](#segurança)
-- [Observabilidade](#observabilidade)
-- [Escalabilidade](#escalabilidade)
-- [Pré-requisitos](#pré-requisitos)
-- [Deploy](#deploy)
-- [Estrutura do Projeto](#estrutura-do-projeto)
+- [Visão Geral](#-visão-geral)
+- [Arquitetura](#-arquitetura)
+- [Decisões de Arquitetura](#-decisões-de-arquitetura)
+- [Fluxo de Dados](#-fluxo-de-dados)
+- [Segurança e Redes](#-segurança-e-redes)
+- [Análise de Custos (FinOps)](#-análise-de-custos-finops)
+- [Resiliência e Testes (Poison Pill)](#-resiliência-e-testes-poison-pill)
+- [Estrutura do Projeto](#-estrutura-do-projeto)
+- [Deploy e CI/CD](#-deploy-e-cicd)
 
 ---
 
 ## 🎯 Visão Geral
 
-Este projeto implementa uma arquitetura Cloud-Native para coleta e processamento de dados de telemetria industrial, utilizando:
+Este projeto implementa uma arquitetura Cloud-Native para coleta e processamento de dados de telemetria industrial em tempo real, utilizando:
 
-- **Infraestrutura como Código (IaC)** com Terraform
-- **Arquitetura Serverless** com AWS Lambda
-- **Mensageria Resiliente** com Amazon SQS
-- **Banco de Dados Seguro** com Amazon RDS PostgreSQL
-- **Mentalidade DevSecOps** aplicada em todas as camadas
+- **Infraestrutura como Código (IaC)** com Terraform.
+- **Arquitetura 100% Serverless** com AWS Lambda e SQS.
+- **Comunicação em Tempo Real** via WebSockets (API Gateway).
+- **Banco de Dados Relacional Seguro** com Amazon RDS PostgreSQL e RDS Proxy.
+- **Segurança Avançada** com VPC Endpoints e IAM Database Authentication.
 
 ---
 
@@ -33,172 +32,61 @@ Este projeto implementa uma arquitetura Cloud-Native para coleta e processamento
 
 ![Diagrama de Arquitetura](./diagrama-arquitetura.png)
 
-
 ---
 
 ## 💡 Decisões de Arquitetura
 
-1. **VPC Endpoints em vez de NAT Gateways**: O projeto utiliza VPC Endpoints (PrivateLink) em substituição aos NAT Gateways. Essa decisão foi motivada por otimização de custos, visto que o NAT Gateway gera cobranças baseadas no volume de dados (banda) trafegados e por hora ativa, enquanto os endpoints proporcionam comunicação privada direta aos serviços da AWS (como SQS) mantendo o tráfego inteiramente na rede da AWS com um custo significativamente menor.
+1. **VPC Totalmente Privada**: Para garantir o isolamento industrial, o backend (Lambdas e RDS) opera em sub-redes privadas sem acesso direto à internet pública.
 
-2. **Utilização do RDS Proxy**: Foi implementado o Amazon RDS Proxy para o gerenciamento inteligente do *pool* de conexões com o banco de dados. Isso previne gargalos de conexão e evita falhas/timeout durante os *cold starts* das funções Lambda, bem como em cenários de alta concorrência.
+2. **VPC Endpoints (PrivateLink)**: Substituem o uso de NAT Gateways para comunicação com SQS, DynamoDB e CloudWatch, mantendo o tráfego dentro da rede da AWS.
 
-3. **IAM Authentication no Banco de Dados**: Utilização do AWS IAM para autenticação no banco de dados em vez de senhas tradicionais. Isso elimina a necessidade de gerenciar ou rotacionar senhas em banco ou no código, aumentando a segurança e facilitando a auditoria.
+3. **RDS Proxy**: Gerencia o pool de conexões das Lambdas, evitando sobrecarga no PostgreSQL e reduzindo a latência de cold start.
 
-4. **Princípio do Menor Privilégio**: Segurança reforçada onde cada Lambda tem um acesso restrito. Ao invés de usar um usuário genérico no banco de dados, cada Lambda possui um usuário próprio no banco de dados aliado ao IAM que permite realizar estritamente as operações necessárias para a finalidade da função (por exemplo, habilitado apenas para realizar `INSERT`, com restrições para demais execuções).
+4. **Zustand com Persistência de Stats**: O frontend gerencia métricas de Máxima e Mínima de forma persistente na janela de tempo, garantindo que picos de temperatura não sejam "esquecidos" quando saem da renderização do gráfico.
 
 ---
 
 ## 🔄 Fluxo de Dados
 
-### 1. Produtor (Industrial Edge Device)
+### 1. Ingestão e Processamento
 
-Script Python que simula um dispositivo industrial de borda:
+- **Edge Device**: Script Python que envia payloads JSON para o SQS com lógica de retry.
+- **Amazon SQS**: Atua como buffer resiliente para absorver picos de carga.
+- **Lambda Ingestor**: Processa as mensagens, persiste no RDS e notifica clientes via WebSocket.
 
-- Coleta dados de sensores/máquinas
-- Envia mensagens JSON para o SQS
-- Implementa **retry com exponential backoff** para resiliência
-- Trata erros de conexão graciosamente
+### 2. Visualização (Real-time & Histórico)
 
-### 2. SQS (Amortecedor de Carga)
-
-Fila de mensagens que atua como buffer:
-
-- Absorve picos de carga sem perda de dados
-- Desacopla produtor do consumidor
-- **Dead Letter Queue (DLQ)**: Mensagens que falham 3x são movidas para auditoria
-- Garante que nenhum dado seja perdido (crítico na indústria)
-
-### 3. Lambda (Processador Stateless)
-
-Função serverless que processa os eventos:
-
-- Recebe eventos do SQS
-- Valida schema JSON dos dados de telemetria
-- Persiste dados no RDS PostgreSQL através do RDS Proxy
-- Completamente stateless (sem estado local)
-
-### 4. RDS PostgreSQL (Armazenamento Seguro)
-
-Banco de dados relacional em ambiente isolado:
-
-- Deploy em **Private Subnets** (sem IP público)
-- Acesso restrito via Security Groups
-- Autenticação via IAM Database Authentication
+- **WebSockets**: Notificações instantâneas de novos dados para o dashboard.
+- **REST API**: Consulta de dados históricos para preenchimento de gráficos e tabelas.
 
 ---
 
-## 🔐 Segurança
+## 🔐 Segurança e Redes
 
-### VPC e Rede
+### Topologia de Rede
 
-```text
-VPC
-├── Public Subnets (2 AZs)
-└── Private Subnets (2 AZs)
-    ├── VPC Endpoints
-    └── RDS PostgreSQL
-```
+O projeto adota uma postura de **Zero Trust** na rede interna:
 
-### Security Groups
-
-| Resource | Inbound Rule | Source                |
-| -------- | ------------ | --------------------- |
-| RDS      | TCP 5432     | Lambda Security Group |
-| Lambda   | -            | Outbound only         |
-
-### IAM (Least Privilege)
-
-- **Sem credenciais hardcoded** - Uso de IAM Database Authentication
-- Role da Lambda com permissões mínimas:
-  - `rds-db:connect` - Apenas conexão ao RDS
-- Usuário do banco com permissões restritas (cada Lambda tem um usuário próprio que a permite fazer apenas o que deve):
-  - ✅ `INSERT` - Inserir dados de telemetria
-  - ❌ `SELECT` / `DELETE` / `DROP` / `UPDATE` - Bloqueados para envio genérico
+- **Private Subnets**: Onde residem o RDS, RDS Proxy e as ENIs das Lambdas.
+- **VPC Endpoints**: Interface para SQS, STS, Logs e Monitoring; Gateway para DynamoDB.
+- **Sem Internet Gateway/NAT Gateway**: Redução drástica da superfície de ataque e de custos fixos.
 
 ---
 
-## 📊 Observabilidade
+## 💰 Análise de Custos (FinOps)
 
-### CloudWatch Logs
+Uma das maiores otimizações deste projeto foi a substituição de NAT Gateways por VPC Endpoints:
 
-- Logs estruturados da Lambda para troubleshooting
-- Rastreamento de falhas sem "adivinhação"
-- Retention policy configurável
-
-### Métricas
-
-- Mensagens na fila (SQS)
-- Invocações e erros (Lambda)
-- Conexões e performance (RDS)
-
-### Alertas
-
-- Mensagens na DLQ
-- Erros de processamento
-- Latência elevada
+- **Economia Estimada**: Um NAT Gateway custa aproximadamente **$32.00/mês** por zona (fixo). Ao usar VPC Endpoints, pagamos apenas pelos serviços utilizados, reduzindo o custo fixo de rede em até **80%** para ambientes de telemetria de médio porte.
 
 ---
 
-## 📈 Escalabilidade
+## 🧪 Resiliência e Testes (Poison Pill)
 
-### Pergunta: "E se o volume de dados aumentar 10x?"
+Para validar a confiabilidade da Dead Letter Queue (DLQ), o sistema inclui uma lógica de **Poison Pill**:
 
-**Resposta:**
-
-1. **SQS absorve o pico** - A fila segura as mensagens durante spikes de carga
-2. **Reserved Concurrency na Lambda** - Limite configurado para proteger as conexões do banco
-3. **RDS Proxy (Connection Pooling)** - Trata de forma eficiente milhares de conexões em curtos espaços de tempo devido à escala ágil das Lambdas.
-
-```hcl
-# Exemplo: Limite de concorrência da Lambda
-resource "aws_lambda_function" "processor" {
-  reserved_concurrent_executions = 10  # Protege o RDS
-}
-```
-
----
-
-## ⚙️ Pré-requisitos
-
-- [Terraform](https://www.terraform.io/downloads) >= 1.0
-- [AWS CLI](https://aws.amazon.com/cli/) configurado
-- [Python](https://www.python.org/) >= 3.9
-- Conta AWS com permissões adequadas
-
----
-
-## 🚀 Deploy
-
-### 1. Clone o repositório
-
-```bash
-git clone https://github.com/seu-usuario/industrial-telemetry-cloud.git
-cd industrial-telemetry-cloud
-```
-
-### 2. Configure as variáveis
-
-```bash
-cp terraform/terraform.tfvars.example terraform/terraform.tfvars
-# Edite o arquivo com suas configurações
-```
-
-### 3. Inicialize e aplique o Terraform
-
-```bash
-cd terraform
-terraform init
-terraform plan
-terraform apply
-```
-
-### 4. Execute o produtor
-
-```bash
-cd producer
-pip install -r requirements.txt
-python edge_device.py
-```
+- Se uma mensagem contendo `machine_id: "POISON_PILL_TEST"` for enviada, a Lambda forçará um erro proposital.
+- Isso permite testar o fluxo de reprocessamento do SQS e a segregação automática de mensagens corrompidas para a DLQ para análise posterior.
 
 ---
 
@@ -206,81 +94,49 @@ python edge_device.py
 
 ```text
 industrial-telemetry-cloud/
-├── README.md
-├── diagrama-arquitetura.png # Diagrama visual da arquitetura
-├── terraform/
-│   ├── main.tf              # Provider e configurações gerais
-│   ├── vpc.tf               # VPC, Subnets, VPC Endpoints
-│   ├── security_groups.tf   # Security Groups
-│   ├── sqs.tf               # Filas SQS + DLQ
-│   ├── lambda.tf            # Função Lambda + IAM Role
-│   ├── rds.tf               # RDS PostgreSQL e RDS Proxy
-│   ├── cloudwatch.tf        # Logs e métricas
-│   ├── variables.tf         # Variáveis de entrada
-│   ├── outputs.tf           # Outputs do deploy
-│   └── terraform.tfvars     # Valores das variáveis
-├── lambda/
-│   ├── handler.py           # Código da Lambda
-│   ├── requirements.txt     # Dependências Python
-│   └── schema.py            # Validação de schema JSON
-└── producer/
-    ├── edge_device.py       # Simulador de dispositivo industrial
-    ├── requirements.txt     # Dependências Python
-    └── config.py            # Configurações do produtor
+├── terraform/               # Infraestrutura como Código
+│   ├── vpc.tf               # Rede Privada e Subnets
+│   ├── vpc_endpoints.tf     # Configuração de PrivateLink
+│   ├── rds.tf               # Banco de Dados e Proxy
+│   ├── lambda.tf            # Definição das funções Serverless
+│   └── sqs.tf               # Filas de Ingestão e DLQ
+├── lambda/                  # Backend Python
+│   ├── ingestor/            # Processamento de dados SQS -> RDS
+│   │   └── lambda_handler.py
+│   └── query/               # API REST e WebSocket
+│       ├── get_telemetry.py
+│       └── ws_connect.py
+├── web/                     # Frontend React (Vite + TS)
+│   └── src/
+│       ├── store/           # Estado Global (Zustand)
+│       └── components/      # UI Industrial
+└── producer/                # Simulador de Dispositivo de Borda
+    └── edge_device.py
 ```
 
 ---
 
-## 🛠️ Recursos Terraform
+## 🚀 Deploy e CI/CD
 
-### VPC e Rede
+### Automação com GitHub Actions
 
-- `aws_vpc` - VPC principal
-- `aws_subnet` - 2 públicas + 2 privadas
-- `aws_vpc_endpoint` - Comunicação privada sem NAT Gatway
-- `aws_route_table` - Tabelas de roteamento
+O projeto utiliza CI/CD para garantir deploys padronizados:
 
-### Segurança
+- **Lint & Format**: Validação de código Terraform e Python.
+- **Terraform Plan**: Visualização de mudanças na infraestrutura em cada Pull Request.
+- **Auto-Deploy**: Aplicação automática na branch main.
 
-- `aws_security_group` - SGs para Lambda e RDS
-- `aws_iam_role` - Role da Lambda baseada em Least Privilege
-- `aws_iam_policy` - Políticas de acesso restritas
+### Execução Local (LocalStack)
 
-### Mensageria
+O projeto é 100% testável localmente utilizando LocalStack Pro:
 
-- `aws_sqs_queue` - Fila principal
-- `aws_sqs_queue` - Dead Letter Queue
-
-### Compute
-
-- `aws_lambda_function` - Processador
-- `aws_lambda_event_source_mapping` - Trigger SQS
-
-### Database
-
-- `aws_db_subnet_group` - Subnet group para RDS
-- `aws_db_instance` - RDS PostgreSQL
-- `aws_db_proxy` - Integração e pool de conexões (RDS Proxy)
-
-### Observabilidade
-
-- `aws_cloudwatch_log_group` - Logs da Lambda
-- `aws_cloudwatch_metric_alarm` - Alertas
-
----
-
-## 📝 Licença
-
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+```bash
+docker-compose up -d
+./deploy.sh
+```
 
 ---
 
 ## 👤 Autor
 
-**Thiago Gritti**
-
----
-
-<p align="center">
-  <i>Desenvolvido com mentalidade DevSecOps 🔒</i>
-</p>
+**Thiago Gritti** - [LinkedIn](https://linkedin.com/in/thiago-gritti)
