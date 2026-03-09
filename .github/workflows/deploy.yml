@@ -44,19 +44,28 @@ jobs:
       - name: Get API ID
         id: get-api-id
         run: |
-          API_ID=$(awslocal apigateway get-rest-apis --query 'items[?name==`telemetry-api`].id' --output text)
+          API_ID=$(awslocal apigateway get-rest-apis --query "items[?name=='telemetry-api'].id" --output text | head -n 1)
+
+          if [ -z "$API_ID" ] || [ "$API_ID" == "None" ]; then
+            echo "ERRO: API ID não encontrado no LocalStack!"
+            exit 1
+          fi
           echo "id=$API_ID" >> $GITHUB_OUTPUT
 
       - name: Generate Frontend .env
         run: |
+          mkdir -p web
           echo "VITE_REST_URL=http://${{ vars.DOMAIN }}:4566/restapis/${{ steps.get-api-id.outputs.id }}/dev/_user_request_/telemetry" > web/.env
           echo "VITE_WS_URL=ws://${{ vars.DOMAIN }}:4510/dev" >> web/.env
+
+          ls -la web/.env
+          cat web/.env
 
       - name: Upload .env as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: frontend-env
-          path: web/.env
+          path: ./web/.env
 
   database-migrations:
     runs-on: self-hosted
@@ -84,10 +93,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-env
-          path: web/
+          path: ./web/
 
       - name: Verify .env location
-        run: ls -la web/
+        run: ls -la ./web/
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
