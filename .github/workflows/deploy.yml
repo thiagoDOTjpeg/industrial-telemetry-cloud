@@ -14,16 +14,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
       - name: Build Psycopg2 Layer
         run: |
           LAYER_PATH="layers/psycopg2_layer/python/lib/python3.12/site-packages"
           mkdir -p "$LAYER_PATH"
-          pip install --upgrade psycopg2-binary==2.9.11 -t "$LAYER_PATH"
+          python3.12 -m pip install --upgrade psycopg2-binary==2.9.11 -t "$LAYER_PATH"
           find layers/psycopg2_layer -name "__pycache__" -type d -exec rm -rf {} +
 
       - name: Terraform Deploy
