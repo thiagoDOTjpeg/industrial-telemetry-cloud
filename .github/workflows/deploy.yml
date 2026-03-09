@@ -66,6 +66,7 @@ jobs:
         with:
           name: frontend-env
           path: web/.env
+          include-hidden-files: true
           if-no-files-found: error
 
   database-migrations:
