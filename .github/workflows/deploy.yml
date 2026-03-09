@@ -1,0 +1,104 @@
+name: "Continuous Deployment"
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  infra-and-build:
+    runs-on: self-hosted
+    outputs:
+      api_id: ${{ steps.get-api-id.outputs.id }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build Psycopg2 Layer
+        run: |
+          LAYER_PATH="layers/psycopg2_layer/python/lib/python3.12/site-packages"
+          mkdir -p "$LAYER_PATH"
+          pip install --upgrade psycopg2-binary==2.9.11 -t "$LAYER_PATH"
+          find layers/psycopg2_layer -name "__pycache__" -type d -exec rm -rf {} +
+
+      - name: Terraform Deploy
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          cd terraform
+          tflocal init
+          tflocal apply -auto-approve
+
+      - name: Get API ID
+        id: get-api-id
+        run: |
+          API_ID=$(awslocal apigateway get-rest-apis --query 'items[?name==`telemetry-api`].id' --output text)
+          echo "id=$API_ID" >> $GITHUB_OUTPUT
+
+      - name: Generate Frontend .env
+        run: |
+          echo "VITE_REST_URL=http://${{ vars.DOMAIN }}:4566/restapis/${{ steps.get-api-id.outputs.id }}/dev/_user_request_/telemetry" > web/.env
+          echo "VITE_WS_URL=ws://${{ vars.DOMAIN }}:4510/dev" >> web/.env
+
+      - name: Upload .env as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-env
+          path: web/.env
+
+  database-migrations:
+    runs-on: self-hosted
+    needs: infra-and-build
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run SQL Migrations
+        env:
+          PGPASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          psql -h ${{ vars.DB_HOST }} -p ${{ vars.DB_PORT }} -U ${{ vars.DB_USER }} -d ${{ vars.DB_NAME }} -f ./sql/init.sql
+
+  docker-deploy:
+    runs-on: self-hosted
+    needs: infra-and-build
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download .env Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-env
+          path: web/
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./web
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/industrial-web:latest
+
+      - name: Deploy Image on VPS Docker
+        run: |
+          # Puxa a imagem nova e reinicia o container
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/industrial-web:latest
+          docker stop industrial-web || true
+          docker rm industrial-web || true
+          docker run -d \
+            --name industrial-web \
+            -p 80:80 \
+            --network host \
+            ${{ secrets.DOCKERHUB_USERNAME }}/industrial-web:latest

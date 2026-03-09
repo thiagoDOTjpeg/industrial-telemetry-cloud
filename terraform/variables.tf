@@ -1,8 +1,3 @@
-variable "db_username_iam" {
-  type    = string
-  default = "telemetry_user"
-}
-
 variable "db_username" {
   type    = string
   default = "admin"
@@ -10,7 +5,6 @@ variable "db_username" {
 
 variable "db_password" {
   type    = string
-  default = "admin"
 }
 
 variable "db_indentifier" {
@@ -38,16 +32,6 @@ variable "db_allocated_storage" {
   default = 10
 }
 
-variable "provider_localhost" {
-  type    = string
-  default = "http://localhost:4566"
-}
-
-variable "provider_localhost_s3" {
-  type    = string
-  default = "http://s3.localhost.localstack.cloud:4566"
-}
-
 variable "aws_region" {
   type    = string
   default = "us-east-1"
@@ -55,10 +39,8 @@ variable "aws_region" {
 
 variable "aws_access_key" {
   type    = string
-  default = "teste"
 }
 
 variable "aws_secret_key" {
   type    = string
-  default = "teste"
 }
