@@ -65,7 +65,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-env
-          path: ./web/.env
+          path: ${{ github.workspace }}/web/.env
+          if-no-files-found: error
 
   database-migrations:
     runs-on: self-hosted
@@ -93,7 +94,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-env
-          path: ./web/
+          path: ${{ github.workspace }}/web/
 
       - name: Verify .env location
         run: ls -la ./web/
