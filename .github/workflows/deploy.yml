@@ -44,7 +44,7 @@ jobs:
       - name: Get API ID
         id: get-api-id
         run: |
-          API_ID=$(awslocal apigateway get-rest-apis --query "items[?name=='telemetry-api'].id" --output text | head -n 1)
+          API_ID=$(awslocal apigateway get-rest-apis --query "items[?name=='dev-telemetry-api'].id" --output text | head -n 1)
 
           if [ -z "$API_ID" ] || [ "$API_ID" == "None" ]; then
             echo "ERRO: API ID não encontrado no LocalStack!"
