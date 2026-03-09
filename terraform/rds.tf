@@ -32,6 +32,7 @@ resource "aws_db_instance" "main-db" {
 
 resource "aws_secretsmanager_secret" "db_secret" {
   name = "dev/industrial-db/credentials"
+  recovery_window_in_days = 0
 }
 
 resource "aws_secretsmanager_secret_version" "db_secret_val" {
