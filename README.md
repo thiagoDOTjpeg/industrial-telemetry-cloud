@@ -73,14 +73,6 @@ O projeto adota uma postura de **Zero Trust** na rede interna:
 
 ---
 
-## 💰 Análise de Custos (FinOps)
-
-Uma das maiores otimizações deste projeto foi a substituição de NAT Gateways por VPC Endpoints:
-
-- **Economia Estimada**: Um NAT Gateway custa aproximadamente **$32.00/mês** por zona (fixo). Ao usar VPC Endpoints, pagamos apenas pelos serviços utilizados, reduzindo o custo fixo de rede em até **80%** para ambientes de telemetria de médio porte.
-
----
-
 ## 🧪 Resiliência e Testes (Poison Pill)
 
 Para validar a confiabilidade da Dead Letter Queue (DLQ), o sistema inclui uma lógica de **Poison Pill**:

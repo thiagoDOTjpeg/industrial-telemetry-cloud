@@ -5,10 +5,11 @@ import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-ENDPOINT_URL = "http://localhost.localstack.cloud:4566"
+AWS_REGION = os.getenv("AWS_REGION")
+TABLE_NAME = os.getenv("DYNAMODB_TABLE", "websocket-connections")
 
-dynamodb = boto3.resource('dynamodb', endpoint_url=ENDPOINT_URL)
-table = dynamodb.Table('websocket-connections')
+dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
+table = dynamodb.Table(TABLE_NAME)
 
 def handler(event, context):
     connection_id = event.get('requestContext', {}).get('connectionId')
@@ -20,5 +21,4 @@ def handler(event, context):
         return {'statusCode': 200, 'body': 'Connected'}
     except Exception as e:
         logger.error(f"Erro ao guardar conexão: {e}")
-        # Se falhar aqui, o socket fecha com 403/1006
         return {'statusCode': 500, 'body': str(e)}

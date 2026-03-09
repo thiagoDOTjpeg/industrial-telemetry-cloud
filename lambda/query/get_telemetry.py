@@ -9,13 +9,12 @@ logger.setLevel(logging.INFO)
 
 AWS_REGION = os.getenv("AWS_REGION")
 DB_ENDPOINT = os.getenv("DB_ENDPOINT")
-DB_PORT = int(os.getenv("DB_PORT"))
+DB_PORT = int(os.getenv("DB_PORT", "5432"))
 DB_USER = os.getenv("DB_USER")
 DB_NAME = os.getenv("DB_NAME")
-LOCALSTACK_URL = "http://localhost.localstack.cloud:4566"
 
-client = boto3.client('rds', region_name=AWS_REGION, endpoint_url=LOCALSTACK_URL)
-DB_HOST = DB_ENDPOINT.split(':')[0]
+client = boto3.client('rds', region_name=AWS_REGION)
+DB_HOST = DB_ENDPOINT.split(':')[0] if DB_ENDPOINT else ""
 
 def get_auth_token():
     return client.generate_db_auth_token(
@@ -71,7 +70,7 @@ def lambda_handler(event, context):
             password=token,
             port=DB_PORT,
             connect_timeout=5,
-            sslmode='disable' 
+            sslmode='disable' if 'localhost' in DB_HOST else 'require'
         )
 
         cur = conn.cursor()
