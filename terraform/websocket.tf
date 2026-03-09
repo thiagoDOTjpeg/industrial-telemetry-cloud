@@ -1,8 +1,8 @@
 resource "aws_dynamodb_table" "ws_connections" {
-  name           = "websocket-connections"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "connectionId"
-  attribute { 
+  name         = "websocket-connections"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "connectionId"
+  attribute {
     name = "connectionId"
     type = "S"
   }
@@ -22,7 +22,7 @@ resource "aws_apigatewayv2_stage" "dev" {
 
 resource "aws_lambda_function" "ws_connect" {
   filename         = data.archive_file.query_zip.output_path
-  source_code_hash = data.archive_file.query_zip.output_base64sha256 
+  source_code_hash = data.archive_file.query_zip.output_base64sha256
   function_name    = "ws_connect"
   role             = aws_iam_role.lambda_exec.arn
   handler          = "ws_connect.handler"

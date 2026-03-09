@@ -100,8 +100,8 @@ resource "aws_iam_policy" "grafana_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = [
+        Effect = "Allow"
+        Action = [
           "cloudwatch:GetMetricData",
           "cloudwatch:ListMetrics",
           "logs:DescribeLogGroups",
@@ -136,8 +136,8 @@ resource "aws_iam_role_policy" "lambda_ws_broadcast" {
         Resource = aws_dynamodb_table.ws_connections.arn
       },
       {
-        Effect = "Allow"
-        Action = "execute-api:ManageConnections"
+        Effect   = "Allow"
+        Action   = "execute-api:ManageConnections"
         Resource = "arn:aws:execute-api:${var.aws_region}:*:*"
       }
     ]
@@ -154,5 +154,5 @@ resource "aws_iam_access_key" "grafana_external" {
 
 resource "aws_iam_user_policy_attachment" "grafana_attach" {
   user       = aws_iam_user.grafana_external.name
-  policy_arn = aws_iam_policy.grafana_policy.arn 
+  policy_arn = aws_iam_policy.grafana_policy.arn
 }

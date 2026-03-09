@@ -8,7 +8,7 @@ resource "aws_db_instance" "main-db" {
   allocated_storage = var.db_allocated_storage
   engine            = var.db_engine
   engine_version    = var.db_engine_version
-  db_name = "test"
+  db_name           = "test"
 
   username = var.db_username
   password = var.db_password

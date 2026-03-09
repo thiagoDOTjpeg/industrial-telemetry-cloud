@@ -6,7 +6,7 @@ data "archive_file" "ingestor_zip" {
 
 data "archive_file" "query_zip" {
   type        = "zip"
-  source_dir = "${path.module}/../lambda/query"
+  source_dir  = "${path.module}/../lambda/query"
   output_path = "${path.module}/query_handler.zip"
 }
 
@@ -36,11 +36,12 @@ resource "aws_lambda_function" "lambda_handler" {
 
   environment {
     variables = {
-      AWS_REGION  = var.aws_region
-      DB_ENDPOINT = aws_db_proxy.rds-proxy.endpoint
-      DB_PORT     = "4511"
-      DB_USER     = "lambda_api_user"
-      DB_NAME     = "test"
+      AWS_REGION      = var.aws_region
+      DB_ENDPOINT     = aws_db_proxy.rds-proxy.endpoint
+      DB_PORT         = "4511"
+      DB_USER         = "lambda_api_user"
+      DB_NAME         = "test"
+      WS_ENDPOINT_URL = "https://${aws_apigatewayv2_api.telemetry_ws.id}.execute-api.${var.aws_region}.amazonaws.com/dev"
     }
   }
 
@@ -51,10 +52,11 @@ resource "aws_lambda_function" "lambda_handler" {
 }
 
 resource "aws_lambda_event_source_mapping" "sqs_trigger" {
-  event_source_arn = aws_sqs_queue.telemetry_queue.arn
-  function_name    = aws_lambda_function.lambda_handler.arn
-  batch_size       = 10
-  enabled          = true
+  event_source_arn        = aws_sqs_queue.telemetry_queue.arn
+  function_name           = aws_lambda_function.lambda_handler.arn
+  function_response_types = ["ReportBatchItemFailures"]
+  batch_size              = 10
+  enabled                 = true
 }
 
 resource "aws_lambda_function" "get_telemetry_lambda" {
@@ -71,7 +73,7 @@ resource "aws_lambda_function" "get_telemetry_lambda" {
       AWS_REGION  = var.aws_region
       DB_ENDPOINT = aws_db_proxy.rds-proxy.endpoint
       DB_PORT     = "4511"
-      DB_USER     = "lambda_api_user" 
+      DB_USER     = "lambda_api_user"
       DB_NAME     = "test"
     }
   }

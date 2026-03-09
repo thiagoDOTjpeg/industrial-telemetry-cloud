@@ -19,7 +19,7 @@ resource "aws_sqs_queue" "telemetry_queue" {
 
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.telemetry_dlq.arn
-    maxReceiveCount     = 3 #
+    maxReceiveCount     = 3
   })
 
   tags = {
