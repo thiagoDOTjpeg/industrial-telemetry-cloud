@@ -38,7 +38,6 @@ jobs:
           TF_VAR_db_allocated_storage: ${{ vars.TF_VAR_DB_ALLOCATED_STORAGE }}
         run: |
           cd terraform
-          # Garante que o bucket de estado existe no LocalStack
           awslocal s3 mb s3://terraform-state || true
           tflocal init
           tflocal apply -auto-approve
@@ -57,11 +56,11 @@ jobs:
       - name: Generate Frontend .env
         run: |
           mkdir -p web
-          echo "VITE_REST_URL=/api/${{ steps.get-api-id.outputs.id }}/dev/_user_request_/telemetry" > web/.env
-          echo "VITE_WS_URL=ws://${{ vars.DOMAIN }}/ws/dev" >> web/.env
+          printf "VITE_REST_URL=/api/${{ steps.get-api-id.outputs.id }}/dev/_user_request_/telemetry\n" > web/.env
+          printf "VITE_WS_URL=ws://${{ vars.DOMAIN }}/ws/dev\n" >> web/.env
 
-          ls -la web/.env
-          cat web/.env
+          # Debug: O 'cat -e' mostra caracteres invisíveis ($ no fim da linha)
+          cat -e web/.env
 
       - name: Upload .env as Artifact
         uses: actions/upload-artifact@v4
