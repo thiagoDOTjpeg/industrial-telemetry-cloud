@@ -56,10 +56,12 @@ jobs:
 
       - name: Generate Frontend .env
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/web"
-          echo "VITE_REST_URL=http://${{ vars.DOMAIN }}:4566/restapis/${{ steps.get-api-id.outputs.id }}/dev/_user_request_/telemetry" > "$GITHUB_WORKSPACE/web/.env"
-          echo "VITE_WS_URL=ws://${{ vars.DOMAIN }}:4510/dev" >> "$GITHUB_WORKSPACE/web/.env"
-          echo "Arquivo gerado em: $(realpath $GITHUB_WORKSPACE/web/.env)"
+          mkdir -p web
+          echo "VITE_REST_URL=/api/${{ steps.get-api-id.outputs.id }}/dev/_user_request_/telemetry" > web/.env
+          echo "VITE_WS_URL=ws://${{ vars.DOMAIN }}/ws/dev" >> web/.env
+
+          ls -la web/.env
+          cat web/.env
 
       - name: Upload .env as Artifact
         uses: actions/upload-artifact@v4
